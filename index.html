@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>果斷行動 - Fruit Slicing Game</title>
+    <!-- p5.js 和 ml5.js 库 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.js"></script>
+    <script src="https://unpkg.com/ml5@0.10.0/dist/ml5.min.js"></script>
+    <!-- 引入外部CSS文件 -->
+    <link rel="stylesheet" href="style.css">
+    <style>
+        #gameContainer {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+        }
+        canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 1;
+        }
+        .game-ui {
+            position: relative;
+            z-index: 2;
+        }
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <div class="start-screen" id="startScreen">
+            <h1>果斷行動</h1>
+            <button id="startButton">開始遊戲</button>
+            <button id="ruleButton">遊戲說明</button>
+            <p><small>注意：遊戲需要使用攝像頭來追踪你的手部動作</small></p>
+        </div>
+
+        <!-- 載入畫面 -->
+        <div class="loading-screen hidden" id="loadingScreen">
+            <div class="loading-content">
+                <h2>正在載入手部偵測模型</h2>
+                <div class="loading-bar-container">
+                    <div class="loading-bar" id="loadingBar"></div>
+                </div>
+                <p class="loading-text">請稍候，正在初始化遊戲...</p>
+            </div>
+        </div>
+
+        <!-- 規則彈窗 -->
+        <div class="modal hidden" id="ruleModal">
+            <div class="modal-content">
+                <span class="close" id="closeRule">&times;</span>
+                <div class="game-desc">
+                    <h2>遊戲目標</h2>
+                    <p>玩家用手部動作揮砍畫面中出現的水果，切中水果得分，避免切到障礙物（炸彈、榴槤等）。</p>
+                    <h2>操作方式</h2>
+                    <p>利用 ml5.js 的 Handpose 偵測玩家手部關節，玩家在鏡像畫面中用手勢揮動來切水果。</p>
+                    <h2>遊戲關卡與難度</h2>
+                    <ul>
+                        <li><b>Lv1：</b>只有障礙物出現，初級難度。</li>
+                        <li><b>Lv2：</b>正常水果＋榴槤（罰分障礙）。</li>
+                        <li><b>Lv3：</b>水果＋榴槤＋炸彈（增加切錯懲罰）。</li>
+                        <li><b>Lv4：</b>超難度，多種障礙物＋Boss水果（高挑戰關卡）。</li>
+                    </ul>
+                    <h2>懲罰機制</h2>
+                    <p>切錯障礙物（炸彈或榴槤）會被扣分或觸發懲罰。</p>
+                    <h2>Combo 與連擊</h2>
+                    <p>連續切中水果可累積 Combo，獲得更高分數。</p>
+                    <h2>挑戰模式特色</h2>
+                    <ul>
+                        <li>水果掉落速度隨時間加快。</li>
+                        <li>罰分物件（炸彈、榴槤）出現頻率提升。</li>
+                        <li>障礙物數量增多，增加遊戲難度。</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 關卡選擇介面 -->
+        <div class="start-screen hidden" id="levelSelect">
+            <button id="exitLevelSelect" class="exit-btn">退出</button>
+            <h1>選擇關卡</h1>
+            <div class="level-buttons">
+                <button id="levelBtn1">第一關：新手教學</button>
+                <button id="levelBtn2">第二關：榴槤挑戰</button>
+                <button id="levelBtn3">第三關：炸彈危機</button>
+                <button id="levelBtn4">第四關：終極挑戰</button>
+            </div>
+            <p><small>選擇一個關卡開始遊戲</small></p>
+        </div>
+        
+        <div class="game-stats hidden" id="gameStats">
+            <div>分數: <span id="score">0</span></div>
+            <div>生命: <span id="lives">3</span></div>
+        </div>
+        
+        <div class="level-indicator hidden" id="levelIndicator">
+            <div>等級: <span id="level">1</span></div>
+        </div>
+        
+        <div class="combo-indicator hidden" id="comboIndicator">
+            COMBO x<span id="comboCount">0</span>!
+        </div>
+        
+        <div class="game-over-screen hidden" id="gameOverScreen">
+            <h1>遊戲結束</h1>
+            <p>太棒了！<br>你的最終分數: <span id="finalScore">0</span><br>達到等級: <span id="finalLevel">0</span></p>
+            <div class="game-over-buttons">
+            <button id="restartButton">再來一次</button>
+                <button id="nextLevelButton" class="hidden">下一關</button>
+                <button id="backToLevelSelect">回到選關</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 引入外部JavaScript文件 -->
+    <script src="sketch.js"></script>
+</body>
+</html>
