@@ -15,7 +15,6 @@ let hands = [];
 let fruits = [];
 let bombs = [];
 let durians = [];
-let bubbleBombs = [];
 let bossActive = false;
 let bossFruit = null;
 
@@ -38,9 +37,9 @@ let lastBossTime = 0;
 
 // 圖片資源
 let fruitImages = [];
+let fruitSlicedImages = []; // 新增：切開後的水果圖片
 let bombImage;
 let durianImage;
-let bubbleBombImage;
 let bossImage;
 let backgroundImage;
 let sliceSound;
@@ -48,7 +47,7 @@ let bombSound;
 let durianSound;
 
 // 水果類型
-const FRUIT_TYPES = ['apple', 'orange', 'watermelon', 'banana', 'pineapple'];
+const FRUIT_TYPES = ['apple', 'banana', 'watermelon', 'strawberry', 'tomato', 'guava', 'pitaya', 'lemon'];
 
 // 新增全域變數
 let gameTimer = 20; // 秒
@@ -64,41 +63,88 @@ function preload() {
         );
         
         // 水果圖片
-        fruitImages['apple'] = loadImage('./Assets/Apple.jpg', 
+        fruitImages['apple'] = loadImage('./Assets/apple1.png', 
             () => console.log('蘋果圖片載入成功'),
             () => console.error('蘋果圖片載入失敗')
         );
-        fruitImages['orange'] = loadImage('./Assets/Orange.jpg', 
-            () => console.log('橘子圖片載入成功'),
-            () => console.error('橘子圖片載入失敗')
-        );
-        fruitImages['watermelon'] = loadImage('./Assets/Watermelon.jpg', 
-            () => console.log('西瓜圖片載入成功'),
-            () => console.error('西瓜圖片載入失敗')
-        );
-        fruitImages['banana'] = loadImage('./Assets/Banana.jpg', 
+        fruitImages['banana'] = loadImage('./Assets/banana1.png', 
             () => console.log('香蕉圖片載入成功'),
             () => console.error('香蕉圖片載入失敗')
         );
-        fruitImages['pineapple'] = loadImage('./Assets/Pineapple.jpg', 
-            () => console.log('鳳梨圖片載入成功'),
-            () => console.error('鳳梨圖片載入失敗')
+        fruitImages['watermelon'] = loadImage('./Assets/watermelon1.png', 
+            () => console.log('西瓜圖片載入成功'),
+            () => console.error('西瓜圖片載入失敗')
+        );
+        fruitImages['strawberry'] = loadImage('./Assets/strawberry1.png', 
+            () => console.log('草莓圖片載入成功'),
+            () => console.error('草莓圖片載入失敗')
+        );
+        fruitImages['tomato'] = loadImage('./Assets/tomato1.png', 
+            () => console.log('番茄圖片載入成功'),
+            () => console.error('番茄圖片載入失敗')
+        );
+        fruitImages['guava'] = loadImage('./Assets/guava1.png', 
+            () => console.log('芭樂圖片載入成功'),
+            () => console.error('芭樂圖片載入失敗')
+        );
+        fruitImages['pitaya'] = loadImage('./Assets/pitaya1.png', 
+            () => console.log('火龍果圖片載入成功'),
+            () => console.error('火龍果圖片載入失敗')
+        );
+        fruitImages['lemon'] = loadImage('./Assets/lemon1.png', 
+            () => console.log('檸檬圖片載入成功'),
+            () => console.error('檸檬圖片載入失敗')
         );
         
+        fruitImages['lemon'] = loadImage('./Assets/lemon1.png', 
+            () => console.log('檸檬圖片載入成功'),
+            () => console.error('檸檬圖片載入失敗')
+        );
+
+        // 水果圖片（切開後）
+        fruitSlicedImages['apple'] = loadImage('./Assets/apple2.png', 
+            () => console.log('切開的蘋果圖片載入成功'),
+            () => console.error('切開的蘋果圖片載入失敗')
+        );
+        fruitSlicedImages['banana'] = loadImage('./Assets/banana2.png', 
+            () => console.log('切開的香蕉圖片載入成功'),
+            () => console.error('切開的香蕉圖片載入失敗')
+        );
+        fruitSlicedImages['watermelon'] = loadImage('./Assets/watermelon2.png', 
+            () => console.log('切開的西瓜圖片載入成功'),
+            () => console.error('切開的西瓜圖片載入失敗')
+        );
+        fruitSlicedImages['strawberry'] = loadImage('./Assets/strawberry2.png', 
+            () => console.log('切開的草莓圖片載入成功'),
+            () => console.error('切開的草莓圖片載入失敗')
+        );
+        fruitSlicedImages['tomato'] = loadImage('./Assets/tomato2.png', 
+            () => console.log('切開的番茄圖片載入成功'),
+            () => console.error('切開的番茄圖片載入失敗')
+        );
+        fruitSlicedImages['guava'] = loadImage('./Assets/guava2.png', 
+            () => console.log('切開的芭樂圖片載入成功'),
+            () => console.error('切開的芭樂圖片載入失敗')
+        );
+        fruitSlicedImages['pitaya'] = loadImage('./Assets/pitaya2.png', 
+            () => console.log('切開的火龍果圖片載入成功'),
+            () => console.error('切開的火龍果圖片載入失敗')
+        );
+        fruitSlicedImages['lemon'] = loadImage('./Assets/lemon2.png', 
+            () => console.log('切開的檸檬圖片載入成功'),
+            () => console.error('切開的檸檬圖片載入失敗')
+        );
+
         // 障礙物圖片
-        bombImage = loadImage('./Assets/Bomb.jpg', 
+        bombImage = loadImage('./Assets/boom.png', 
             () => console.log('炸彈圖片載入成功'),
             () => console.error('炸彈圖片載入失敗')
         );
-        durianImage = loadImage('./Assets/Durian.jpg', 
+        durianImage = loadImage('./Assets/durian1.png', 
             () => console.log('榴槤圖片載入成功'),
             () => console.error('榴槤圖片載入失敗')
         );
-        bubbleBombImage = loadImage('./Assets/BubbleBomb.jpg', 
-            () => console.log('彈珠炸彈圖片載入成功'),
-            () => console.error('彈珠炸彈圖片載入失敗')
-        );
-        bossImage = loadImage('./Assets/Boss.jpg', 
+        bossImage = loadImage('./Assets/boss.png', 
             () => console.log('Boss圖片載入成功'),
             () => console.error('Boss圖片載入失敗')
         );
@@ -139,7 +185,6 @@ function startGame() {
     fruits = [];
     bombs = [];
     durians = [];
-    bubbleBombs = [];
     bossFruit = null;
     bossActive = false;
     lastFruitTime = millis();
@@ -308,7 +353,7 @@ function updateGameLogic() {
     }
     // 隨機生成水果/障礙物
     if (currentTime - lastFruitTime > fruitInterval) {
-        if (fruits.length + bombs.length + durians.length + bubbleBombs.length < maxObjects) {
+        if (fruits.length + bombs.length + durians.length < maxObjects) {
             generateObject();
             lastFruitTime = currentTime;
         }
@@ -322,7 +367,6 @@ function updateGameLogic() {
     updateFruits();
     updateBombs();
     updateDurians();
-    updateBubbleBombs();
     if (bossActive && bossFruit) {
         updateBoss();
     }
@@ -361,15 +405,13 @@ function generateObject() {
             generateBomb();
         }
     } else {
-        // Lv4：60% 水果，15% 榴槤，15% 炸彈，10% 彈珠炸彈
+        // Lv4：60% 水果，20% 榴槤，20% 炸彈
         if (rand < 0.6) {
             generateFruit();
-        } else if (rand < 0.75) {
+        } else if (rand < 0.8) {
             generateDurian();
-        } else if (rand < 0.9) {
-            generateBomb();
         } else {
-            generateBubbleBomb();
+            generateBomb();
         }
     }
 }
@@ -429,24 +471,6 @@ function generateDurian() {
         rotation: 0,
         rotationSpeed,
         size
-    });
-}
-
-function generateBubbleBomb() {
-    const x = random(width * 0.1, width * 0.9);
-    const y = height + 50;
-    const speedX = random(-1, 1);
-    const speedY = random(-12, -8); // 調整彈珠炸彈的速度
-    const size = 70;
-    
-    bubbleBombs.push({
-        x,
-        y,
-        speedX,
-        speedY,
-        size,
-        bounceCount: 0,
-        maxBounces: 3
     });
 }
 
@@ -517,28 +541,6 @@ function updateDurians() {
         // 如果榴槤已經離開畫面，移除它
         if (durian.y > height + 100) {
             durians.splice(i, 1);
-        }
-    }
-}
-
-function updateBubbleBombs() {
-    for (let i = bubbleBombs.length - 1; i >= 0; i--) {
-        const bubbleBomb = bubbleBombs[i];
-        
-        // 更新位置
-        bubbleBomb.speedY += 0.1; // 較小的重力
-        bubbleBomb.x += bubbleBomb.speedX;
-        bubbleBomb.y += bubbleBomb.speedY;
-        
-        // 碰到底部彈跳
-        if (bubbleBomb.y > height - 20 && bubbleBomb.speedY > 0) {
-            bubbleBomb.speedY *= -0.8;
-            bubbleBomb.bounceCount++;
-        }
-        
-        // 如果彈珠炸彈已經彈跳超過最大次數或離開畫面，移除它
-        if (bubbleBomb.bounceCount > bubbleBomb.maxBounces || bubbleBomb.y > height + 100) {
-            bubbleBombs.splice(i, 1);
         }
     }
 }
@@ -619,16 +621,6 @@ function checkCollisions() {
         }
     }
     
-    // 檢查彈珠炸彈碰撞
-    for (let i = bubbleBombs.length - 1; i >= 0; i--) {
-        const bubbleBomb = bubbleBombs[i];
-        if (lineCircleIntersect(prevSlicePos, currentFingerPos, createVector(bubbleBomb.x, bubbleBomb.y), bubbleBomb.size / 2)) {
-            // 彈珠炸彈會隨機改變方向並加速
-            bubbleBomb.speedX = random(-5, 5);
-            bubbleBomb.speedY = random(-8, -5);
-        }
-    }
-    
     // 檢查 Boss 碰撞
     if (bossActive && bossFruit) {
         if (lineCircleIntersect(prevSlicePos, currentFingerPos, createVector(bossFruit.x, bossFruit.y), bossFruit.size / 2)) {
@@ -658,26 +650,31 @@ function drawObjects() {
         rotate(fruit.rotation);
         
         if (fruit.sliced) {
-            // 加強被切開的水果效果
-            fill(255, 100, 100, 200);
-            ellipse(0, 0, fruit.size * 1.3, fruit.size * 1.3);
-            
-            // 添加切割線效果
-            stroke(255);
-            strokeWeight(3);
-            line(-fruit.size/2, -fruit.size/2, fruit.size/2, fruit.size/2);
-        }
-        
-        if (fruitImages[fruit.type]) {
-            // 添加發光效果
-            drawingContext.shadowBlur = 20;
-            drawingContext.shadowColor = 'rgba(255, 255, 255, 0.5)';
-            image(fruitImages[fruit.type], -fruit.size/2, -fruit.size/2, fruit.size, fruit.size);
-            drawingContext.shadowBlur = 0;
+            // 使用切開後的水果圖片
+            if (fruitSlicedImages[fruit.type]) {
+                // 添加發光效果
+                drawingContext.shadowBlur = 20;
+                drawingContext.shadowColor = 'rgba(255, 255, 255, 0.5)';
+                image(fruitSlicedImages[fruit.type], -fruit.size/2, -fruit.size/2, fruit.size, fruit.size);
+                drawingContext.shadowBlur = 0;
+            } else {
+                console.error('切開的水果圖片未載入:', fruit.type);
+                fill(255, 100, 100, 200);
+                ellipse(0, 0, fruit.size, fruit.size);
+            }
         } else {
-            console.error('水果圖片未載入:', fruit.type);
-            fill(255, 0, 0);
-            ellipse(0, 0, fruit.size, fruit.size);
+            // 使用未切開的水果圖片
+            if (fruitImages[fruit.type]) {
+                // 添加發光效果
+                drawingContext.shadowBlur = 20;
+                drawingContext.shadowColor = 'rgba(255, 255, 255, 0.5)';
+                image(fruitImages[fruit.type], -fruit.size/2, -fruit.size/2, fruit.size, fruit.size);
+                drawingContext.shadowBlur = 0;
+            } else {
+                console.error('水果圖片未載入:', fruit.type);
+                fill(255, 0, 0);
+                ellipse(0, 0, fruit.size, fruit.size);
+            }
         }
         pop();
     }
@@ -716,22 +713,6 @@ function drawObjects() {
         pop();
     }
     
-    // 繪製彈珠炸彈
-    for (const bubbleBomb of bubbleBombs) {
-        push();
-        if (bubbleBombImage) {
-            // 添加發光效果
-            drawingContext.shadowBlur = 15;
-            drawingContext.shadowColor = 'rgba(0, 255, 255, 0.5)';
-            image(bubbleBombImage, bubbleBomb.x - bubbleBomb.size/2, bubbleBomb.y - bubbleBomb.size/2, bubbleBomb.size, bubbleBomb.size);
-            drawingContext.shadowBlur = 0;
-        } else {
-            fill(0, 0, 255);
-            ellipse(bubbleBomb.x, bubbleBomb.y, bubbleBomb.size, bubbleBomb.size);
-        }
-        pop();
-    }
-    
     // 繪製 Boss
     if (bossActive && bossFruit) {
         push();
@@ -757,6 +738,7 @@ function drawObjects() {
         pop();
     }
 }
+
 function drawHandTracking() {
     // 繪製手指位置
     if (fingerPositions.length > 0) {
