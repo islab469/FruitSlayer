@@ -6,7 +6,8 @@
     <title>果斷行動 - Fruit Slicing Game</title>
     <!-- p5.js 和 ml5.js 库 -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.js"></script>
-    <script src="https://unpkg.com/ml5@0.10.0/dist/ml5.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/ml5@0.6.0/dist/ml5.min.js"></script>
+
     <!-- 引入外部CSS文件 -->
     <link rel="stylesheet" href="style.css">
     <style>
@@ -111,7 +112,7 @@
         
         <div class="game-over-screen hidden" id="gameOverScreen">
             <h1>遊戲結束</h1>
-            <p>太棒了！<br>你的最終分數: <span id="finalScore">0</span><br>達到等級: <span id="finalLevel">0</span></p>
+            <p>太棒了！<br>你的最終分數: <span id="finalScore"></p>
             <div class="game-over-buttons">
             <button id="restartButton">再來一次</button>
                 <button id="nextLevelButton" class="hidden">下一關</button>

@@ -223,21 +223,25 @@ button:active {
 
 /* 關卡選擇按鈕樣式 */
 .level-buttons {
-    display: flex;
-    flex-direction: column;
-    gap: 1vw;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2vw 2vw;
     margin: 2vw 0;
+    justify-items: center;
 }
 
 .level-buttons button {
-    width: 80%;
-    max-width: 400px;
+    width: 90%;
+    max-width: 550px;
     background: linear-gradient(45deg, #4CAF50, #8BC34A);
     color: white;
-    font-size: 1.4vw;
-    padding: 1vw 2vw;
+    font-size: 2vw;
+    padding: 2vw 6vw;
     border-radius: 10px;
     transition: all 0.3s ease;
+    position: relative;
+    margin: 0;
+    white-space: nowrap;
 }
 
 .level-buttons button:hover {
@@ -251,10 +255,35 @@ button:active {
     box-shadow: 0 2px 10px rgba(76, 175, 80, 0.4);
 }
 
-@media (max-width: 768px) {
+/* 未解鎖關卡按鈕樣式 */
+.level-buttons button.locked {
+    background: linear-gradient(45deg, #2E7D32, #558B2F);
+    opacity: 0.6;
+    cursor: not-allowed;
+    filter: grayscale(50%);
+}
+
+.level-buttons button.locked:hover {
+    transform: none;
+    box-shadow: none;
+    background: linear-gradient(45deg, #2E7D32, #558B2F);
+}
+
+.level-buttons button.locked::before {
+    content: "🔒";
+    margin-right: 10px;
+    font-size: 1.2em;
+    vertical-align: middle;
+}
+
+@media (max-width: 900px) {
+    .level-buttons {
+        grid-template-columns: 1fr;
+    }
     .level-buttons button {
-        font-size: 3.5vw;
-        padding: 2vw 4vw;
+        width: 95%;
+        max-width: 600px;
+        font-size: 3vw;
     }
 }
 
