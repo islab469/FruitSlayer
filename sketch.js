@@ -1,14 +1,30 @@
-// 遊戲狀態
-let gameState = 'start'; // 'start', 'playing', 'gameover'
+// ==================== 遊戲常數與設定 ====================
+const GAME_SETTINGS = {
+    MAX_FRUITS: 5,
+    FRUIT_INTERVAL: 1000,
+    BOSS_INTERVAL: 30000,
+    TRAIL_LENGTH: 10,
+    SMOOTHING_FACTOR: 0.3,
+    HAND_LOST_THRESHOLD: 800,
+    MAX_MOVEMENT_DISTANCE: 50,
+    MIN_CONFIDENCE: 0.4
+};
+
+const LEVEL_REQUIREMENTS = [100, 100, 100, 100];
+const FRUIT_TYPES = ['apple', 'banana', 'watermelon', 'strawberry', 'tomato', 'guava', 'pitaya', 'lemon'];
+
+// ==================== 遊戲狀態變數 ====================
+let gameState = 'start';  // 'start', 'playing', 'gameover'
 let score = 0;
 let lives = 3;
-let level = 1;  // 玩家選擇的關卡
-let currentLevel = 1; // 當前進度等級（用於解鎖下一關）
+let level = 1;           // 玩家選擇的關卡
+let currentLevel = 1;    // 當前進度等級
 let comboCount = 0;
 let lastSliceTime = 0;
-const LEVEL_REQUIREMENTS = [100, 100, 100, 100]; // 每關所需分數
+let gameTimer = 20;      // 秒
+let gameStartTime = 0;
 
-// P5.js 變數
+// ==================== P5.js 與 ML5.js 變數 ====================
 let video;
 let handpose;
 let hands = [];
@@ -18,144 +34,186 @@ let durians = [];
 let bossActive = false;
 let bossFruit = null;
 
-// 手部追踪變數
-// 在全域宣告這兩個變數
+// ==================== 手部追踪變數 ====================
 let minFingerX = Infinity;
 let maxFingerX = -Infinity;
 let fingerPositions = [];
 let sliceTrail = [];
 let lastFingerPos = null;
 let lastValidHandTime = 0;
-const TRAIL_LENGTH = 10; // 減少軌跡長度，使軌跡更精確
-const SMOOTHING_FACTOR = 0.3; // 降低平滑因子，使移動更靈敏
-const HAND_LOST_THRESHOLD = 800; // 減少手部失去偵測的閾值
-const MAX_MOVEMENT_DISTANCE = 50; // 減少最大允許移動距離
-const MIN_CONFIDENCE = 0.4; // 提高最小信心度閾值
 
-// 遊戲設定
-const MAX_FRUITS = 5;
-const FRUIT_INTERVAL = 1000; // 水果生成間隔（毫秒）
-let lastFruitTime = 0;
-const BOSS_INTERVAL = 30000; // Boss 出現間隔（毫秒）
-let lastBossTime = 0;
-
-// 圖片資源
+// ==================== 遊戲資源 ====================
 let fruitImages = [];
-let fruitSlicedImages = []; // 新增：切開後的水果圖片
+let fruitSlicedImages = [];
 let bombImage;
 let durianImage;
 let backgroundImage;
 let sliceSound;
 let bombSound;
 let durianSound;
+let cuttingImage;
 
-// 水果類型
-const FRUIT_TYPES = ['apple', 'banana', 'watermelon', 'strawberry', 'tomato', 'guava', 'pitaya', 'lemon'];
-
-// 新增全域變數
-let gameTimer = 20; // 秒
-let gameStartTime = 0;
-
-// 預加載圖片
+// ==================== 遊戲初始化 ====================
 function preload() {
     try {
-        // 背景圖片
-        backgroundImage = loadImage('./Assets/background.jpg', 
-            () => console.log('背景圖片載入成功'),
-            () => console.error('背景圖片載入失敗')
-        );
-        
-        // 水果圖片（未切開）
-        fruitImages['apple'] = loadImage('./Assets/apple1.png', 
-            () => console.log('蘋果圖片載入成功'),
-            () => console.error('蘋果圖片載入失敗')
-        );
-        fruitImages['banana'] = loadImage('./Assets/banana1.png', 
-            () => console.log('香蕉圖片載入成功'),
-            () => console.error('香蕉圖片載入失敗')
-        );
-        fruitImages['watermelon'] = loadImage('./Assets/watermelon1.png', 
-            () => console.log('西瓜圖片載入成功'),
-            () => console.error('西瓜圖片載入失敗')
-        );
-        fruitImages['strawberry'] = loadImage('./Assets/strawberry1.png', 
-            () => console.log('草莓圖片載入成功'),
-            () => console.error('草莓圖片載入失敗')
-        );
-        fruitImages['tomato'] = loadImage('./Assets/tomato1.png', 
-            () => console.log('番茄圖片載入成功'),
-            () => console.error('番茄圖片載入失敗')
-        );
-        fruitImages['guava'] = loadImage('./Assets/guava1.png', 
-            () => console.log('芭樂圖片載入成功'),
-            () => console.error('芭樂圖片載入失敗')
-        );
-        fruitImages['pitaya'] = loadImage('./Assets/pitaya1.png', 
-            () => console.log('火龍果圖片載入成功'),
-            () => console.error('火龍果圖片載入失敗')
-        );
-        fruitImages['lemon'] = loadImage('./Assets/lemon1.png', 
-            () => console.log('檸檬圖片載入成功'),
-            () => console.error('檸檬圖片載入失敗')
-        );
-
-        // 水果圖片（切開後）
-        fruitSlicedImages['apple'] = loadImage('./Assets/apple2.png', 
-            () => console.log('切開的蘋果圖片載入成功'),
-            () => console.error('切開的蘋果圖片載入失敗')
-        );
-        fruitSlicedImages['banana'] = loadImage('./Assets/banana2.png', 
-            () => console.log('切開的香蕉圖片載入成功'),
-            () => console.error('切開的香蕉圖片載入失敗')
-        );
-        fruitSlicedImages['watermelon'] = loadImage('./Assets/watermelon2.png', 
-            () => console.log('切開的西瓜圖片載入成功'),
-            () => console.error('切開的西瓜圖片載入失敗')
-        );
-        fruitSlicedImages['strawberry'] = loadImage('./Assets/strawberry2.png', 
-            () => console.log('切開的草莓圖片載入成功'),
-            () => console.error('切開的草莓圖片載入失敗')
-        );
-        fruitSlicedImages['tomato'] = loadImage('./Assets/tomato2.png', 
-            () => console.log('切開的番茄圖片載入成功'),
-            () => console.error('切開的番茄圖片載入失敗')
-        );
-        fruitSlicedImages['guava'] = loadImage('./Assets/guava2.png', 
-            () => console.log('切開的芭樂圖片載入成功'),
-            () => console.error('切開的芭樂圖片載入失敗')
-        );
-        fruitSlicedImages['pitaya'] = loadImage('./Assets/pitaya2.png', 
-            () => console.log('切開的火龍果圖片載入成功'),
-            () => console.error('切開的火龍果圖片載入失敗')
-        );
-        fruitSlicedImages['lemon'] = loadImage('./Assets/lemon2.png', 
-            () => console.log('切開的檸檬圖片載入成功'),
-            () => console.error('切開的檸檬圖片載入失敗')
-        );
-        
-        // 障礙物圖片
-        bombImage = loadImage('./Assets/boom.png', 
-            () => console.log('炸彈圖片載入成功'),
-            () => console.error('炸彈圖片載入失敗')
-        );
-        durianImage = loadImage('./Assets/durian1.png', 
-            () => console.log('榴槤圖片載入成功'),
-            () => console.error('榴槤圖片載入失敗')
-        );
+        loadBackgroundImage();
+        loadFruitImages();
+        loadSlicedFruitImages();
+        loadObstacleImages();
+        cuttingImage = loadImage('Assets/Cutting.png');
     } catch (error) {
         console.error('圖片載入過程中發生錯誤:', error);
     }
 }
 
 function setup() {
-    // 創建畫布
-    let canvas = createCanvas(windowWidth, windowHeight);
-    canvas.parent('gameContainer');
+    createCanvas(windowWidth, windowHeight).parent('gameContainer');
+    setupVideo();
+}
+
+// ==================== 遊戲核心邏輯 ====================
+function draw() {
+    clear();
+    drawBackground();
     
-    // 設置視訊
-    video = createCapture(VIDEO);
-    video.size(640, 480);
-    video.hide();
+    if (gameState === 'playing') {
+        updateGameTimer();
+        if (gameTimer <= 0) {
+            gameOver();
+            return;
+        }
+        
+        updateHandTracking();
+        updateGameLogic();
+        drawObjects();
+        drawHandTracking();
+        drawHandDetectionMessage();
+    }
+}
+
+// ==================== 遊戲狀態管理 ====================
+function startGame() {
+    resetGameState();
+    showGameUI();
+}
+
+function gameOver() {
+    gameState = 'gameover';
+    hideGameUI();
+    showGameOverScreen();
+    handleNextLevelButton();
+}
+
+function restartGame() {
+    hideGameOverScreen();
+    startGame();
+}
+
+// ==================== 物件生成與更新 ====================
+function generateObject() {
+    const rand = random(1);
+    switch(level) {
+        case 1: // Lv1：只產生水果
+            generateFruit();
+            break;
+        case 2: // Lv2：90% 水果，10% 榴槤
+            rand < 0.9 ? generateFruit() : generateDurian();
+            break;
+        case 3: // Lv3：80% 水果，10% 榴槤，10% 炸彈
+            if (rand < 0.8) generateFruit();
+            else if (rand < 0.9) generateDurian();
+            else generateBomb();
+            break;
+        default: // Lv4：70% 水果，15% 榴槤，15% 炸彈
+            if (rand < 0.7) generateFruit();
+            else if (rand < 0.85) generateDurian();
+            else generateBomb();
+    }
+}
+
+// ==================== 碰撞檢測 ====================
+function checkCollisions() {
+    if (fingerPositions.length === 0 || sliceTrail.length < 2) return;
+    
+    const currentFingerPos = fingerPositions[0];
+    const prevSlicePos = sliceTrail.length >= 2 ? sliceTrail[sliceTrail.length - 2].pos : null;
+    
+    if (!prevSlicePos) return;
+    
+    checkFruitCollisions(prevSlicePos, currentFingerPos);
+    checkBombCollisions(prevSlicePos, currentFingerPos);
+    checkDurianCollisions(prevSlicePos, currentFingerPos);
+}
+
+// ==================== 繪製函數 ====================
+function drawObjects() {
+    drawFruits();
+    drawBombs();
+    drawDurians();
+}
+
+function drawCutEffect() {
+    if (!cutEffect.active) return;
+    
+    push();
+    const { startX, startY, endX, endY } = cutEffect;
+    const dx = endX - startX;
+    const dy = endY - startY;
+    const angle = atan2(dy, dx);
+    const length = dist(startX, startY, endX, endY);
+    
+    imageMode(CENTER);
+    const numImages = floor(length / 20);
+    
+    for (let i = 0; i < numImages; i++) {
+        const t = i / numImages;
+        const x = lerp(startX, endX, t);
+        const y = lerp(startY, endY, t);
+        
+        push();
+        translate(x, y);
+        rotate(angle);
+        image(cuttingImage, 0, 0, 40, 40);
+        pop();
+    }
+    pop();
+}
+
+// ==================== 事件處理 ====================
+window.addEventListener('DOMContentLoaded', () => {
+    setupRuleModal();
+    setupStartButton();
+    setupLevelButtons();
+    setupRestartButton();
+    setupBackToLevelButton();
+    setupExitLevelButton();
+    setupNextLevelButton();
+});
+
+// ==================== 輔助函數 ====================
+function lineCircleIntersect(lineStart, lineEnd, circleCenter, radius) {
+    const d = dist(lineStart.x, lineStart.y, lineEnd.x, lineEnd.y);
+    if (d === 0) return false;
+    
+    const expandedRadius = radius * 1.2;
+    const dot = (((circleCenter.x - lineStart.x) * (lineEnd.x - lineStart.x)) + 
+                 ((circleCenter.y - lineStart.y) * (lineEnd.y - lineStart.y))) / (d * d);
+    
+    const closestX = lineStart.x + (dot * (lineEnd.x - lineStart.x));
+    const closestY = lineStart.y + (dot * (lineEnd.y - lineStart.y));
+    
+    if (dot < -0.1 || dot > 1.1) {
+        const distToStart = dist(lineStart.x, lineStart.y, circleCenter.x, circleCenter.y);
+        const distToEnd = dist(lineEnd.x, lineEnd.y, circleCenter.x, circleCenter.y);
+        return distToStart <= expandedRadius || distToEnd <= expandedRadius;
+    }
+    
+    return dist(closestX, closestY, circleCenter.x, circleCenter.y) <= expandedRadius;
+}
+
+function windowResized() {
+    resizeCanvas(windowWidth, windowHeight);
+    console.log('視窗調整後的畫布大小:', width, height);
 }
 
 function modelReady() {
@@ -169,49 +227,6 @@ function modelReady() {
     // 模型載入完成後，顯示關卡選擇畫面
     document.getElementById('loadingScreen').classList.add('hidden');
     document.getElementById('levelSelect').classList.remove('hidden');
-}
-
-function startGame() {
-    gameState = 'playing';
-    score = 0;
-    lives = 3;
-    comboCount = 0;
-    fruits = [];
-    bombs = [];
-    durians = [];
-    bossFruit = null;
-    bossActive = false;
-    lastFruitTime = millis();
-    lastBossTime = millis();
-    gameTimer = 20;
-    gameStartTime = millis();
-    document.getElementById('gameStats').classList.remove('hidden');
-    document.getElementById('comboIndicator').classList.add('hidden');
-    updateStats();
-}
-
-function restartGame() {
-    document.getElementById('gameOverScreen').classList.add('hidden');
-    startGame();
-}
-
-function gameOver() {
-    gameState = 'gameover';
-    document.getElementById('gameStats').classList.add('hidden');
-    document.getElementById('comboIndicator').classList.add('hidden');
-    document.getElementById('gameOverScreen').classList.remove('hidden');
-    document.getElementById('finalScore').textContent = score;
-
-    // 檢查是否達到下一關的條件
-    const nextLevelButton = document.getElementById('nextLevelButton');
-    if (currentLevel < 4 && score >= LEVEL_REQUIREMENTS[currentLevel - 1]) {
-        nextLevelButton.classList.remove('hidden');
-        nextLevelButton.textContent = `進入第 ${currentLevel + 1} 關`;
-        console.log('顯示下一關按鈕，當前分數:', score, '所需分數:', LEVEL_REQUIREMENTS[currentLevel - 1]);
-    } else {
-        nextLevelButton.classList.add('hidden');
-        console.log('隱藏下一關按鈕，當前分數:', score, '所需分數:', LEVEL_REQUIREMENTS[currentLevel - 1]);
-    }
 }
 
 function updateStats() {
@@ -241,45 +256,6 @@ function showCombo() {
     }, 1500);
 }
 
-function draw() {
-    // 清除背景
-    clear();
-    
-    // 繪製背景
-    if (backgroundImage) {
-        image(backgroundImage, 0, 0, width, height);
-    } else {
-        background(100);
-    }
-
-    if (gameState === 'playing') {
-        // 倒數計時
-        let elapsed = (millis() - gameStartTime) / 1000;
-        let timeLeft = Math.max(0, 20 - Math.floor(elapsed));
-        gameTimer = timeLeft;
-        // 顯示剩餘時間
-        fill('#FFD700');
-        textAlign(RIGHT, TOP);
-        textSize(32);
-        text('剩餘時間: ' + gameTimer + ' 秒', width - 30, 30);
-        // 時間到自動結束
-        if (gameTimer <= 0) {
-            gameOver();
-            return;
-        }
-        updateHandTracking();
-        updateGameLogic();
-        drawObjects();
-        drawHandTracking();
-        if (hands.length === 0) {
-            fill(255, 255, 0, 220);
-            textAlign(CENTER, CENTER);
-            textSize(36);
-            text('請將手放在鏡頭前', width/2, height/2);
-        }
-    }
-}
-
 function updateHandTracking() {
     const currentTime = millis();
     
@@ -287,7 +263,7 @@ function updateHandTracking() {
         const hand = hands[0];
         
         // 檢查信心度
-        if (hand.confidence < MIN_CONFIDENCE) {
+        if (hand.confidence < GAME_SETTINGS.MIN_CONFIDENCE) {
             if (lastFingerPos) {
                 fingerPositions = [lastFingerPos.copy()];
             }
@@ -312,7 +288,7 @@ function updateHandTracking() {
         // 檢查移動距離是否合理
         if (lastFingerPos) {
             const distance = dist(lastFingerPos.x, lastFingerPos.y, newX, newY);
-            if (distance > MAX_MOVEMENT_DISTANCE) {
+            if (distance > GAME_SETTINGS.MAX_MOVEMENT_DISTANCE) {
                 // 如果移動距離過大，使用更平滑的過渡
                 const smoothedX = lastFingerPos.x + (newX - lastFingerPos.x) * 0.2;
                 const smoothedY = lastFingerPos.y + (newY - lastFingerPos.y) * 0.2;
@@ -324,8 +300,8 @@ function updateHandTracking() {
         
         // 平滑處理
         if (lastFingerPos) {
-            const smoothedX = lastFingerPos.x + (newX - lastFingerPos.x) * SMOOTHING_FACTOR;
-            const smoothedY = lastFingerPos.y + (newY - lastFingerPos.y) * SMOOTHING_FACTOR;
+            const smoothedX = lastFingerPos.x + (newX - lastFingerPos.x) * GAME_SETTINGS.SMOOTHING_FACTOR;
+            const smoothedY = lastFingerPos.y + (newY - lastFingerPos.y) * GAME_SETTINGS.SMOOTHING_FACTOR;
             fingerPositions = [createVector(smoothedX, smoothedY)];
             lastFingerPos = createVector(smoothedX, smoothedY);
         } else {
@@ -340,12 +316,12 @@ function updateHandTracking() {
         if (fingerPositions.length > 0) {
             sliceTrail.push({
                 pos: fingerPositions[0].copy(),
-                life: TRAIL_LENGTH
+                life: GAME_SETTINGS.TRAIL_LENGTH
             });
         }
     } else {
         // 檢查是否超過手部失去偵測的閾值
-        if (currentTime - lastValidHandTime > HAND_LOST_THRESHOLD) {
+        if (currentTime - lastValidHandTime > GAME_SETTINGS.HAND_LOST_THRESHOLD) {
             lastFingerPos = null;
             fingerPositions = [];
         } else if (lastFingerPos) {
@@ -360,8 +336,8 @@ function updateHandTracking() {
 function updateGameLogic() {
     const currentTime = millis();
     // 根據選擇的關卡調整生成間隔與最大物件數與速度
-    let fruitInterval = FRUIT_INTERVAL;
-    let maxObjects = MAX_FRUITS;
+    let fruitInterval = GAME_SETTINGS.FRUIT_INTERVAL;
+    let maxObjects = GAME_SETTINGS.MAX_FRUITS;
     
     // 關卡速度設定
     if (level === 1) {
@@ -385,54 +361,12 @@ function updateGameLogic() {
             lastFruitTime = currentTime;
         }
     }
-    
-    // 更新所有物件
     updateFruits();
     updateBombs();
     updateDurians();
-    // 檢查碰撞
     checkCollisions();
-    // 檢查是否達到下一關分數要求
-    if (currentLevel < 4 && score >= LEVEL_REQUIREMENTS[currentLevel - 1]) {
-        currentLevel++;
-        updateStats();
-    }
-    // Combo 系統
     if (comboCount > 0 && currentTime - lastSliceTime > 2000) {
         comboCount = 0;
-    }
-}
-
-function generateObject() {
-    const rand = random(1);
-    if (level === 1) {
-        // Lv1：只產生水果，無障礙物
-        generateFruit();
-    } else if (level === 2) {
-        // Lv2：90% 水果，10% 榴槤
-        if (rand < 0.9) {
-            generateFruit();
-        } else {
-            generateDurian();
-        }
-    } else if (level === 3) {
-        // Lv3：80% 水果，10% 榴槤，10% 炸彈
-        if (rand < 0.8) {
-            generateFruit();
-        } else if (rand < 0.9) {
-            generateDurian();
-        } else {
-            generateBomb();
-        }
-    } else {
-        // Lv4：70% 水果，15% 榴槤，15% 炸彈
-        if (rand < 0.7) {
-            generateFruit();
-        } else if (rand < 0.85) {
-            generateDurian();
-        } else {
-            generateBomb();
-        }
     }
 }
 
@@ -460,7 +394,7 @@ function generateFruit() {
         right = width * 0.55; // 進一步縮小右邊界
     }
 
-const x = random(left, right);
+    const x = random(left, right);
     const y = height + 50;
     const speedX = random(-2, 2);  // 減少水平速度範圍
     const speedY = random(-18, -15);
@@ -563,14 +497,7 @@ function updateDurians() {
     }
 }
 
-function checkCollisions() {
-    if (fingerPositions.length === 0 || sliceTrail.length < 2) return;
-    
-    const currentFingerPos = fingerPositions[0];
-    const prevSlicePos = sliceTrail.length >= 2 ? sliceTrail[sliceTrail.length - 2].pos : null;
-    
-    if (!prevSlicePos) return;
-    
+function checkFruitCollisions(prevSlicePos, currentFingerPos) {
     // 檢查水果碰撞
     for (let i = fruits.length - 1; i >= 0; i--) {
         const fruit = fruits[i];
@@ -594,7 +521,9 @@ function checkCollisions() {
             updateStats();
         }
     }
-    
+}
+
+function checkBombCollisions(prevSlicePos, currentFingerPos) {
     // 檢查炸彈碰撞
     for (let i = bombs.length - 1; i >= 0; i--) {
         const bomb = bombs[i];
@@ -606,7 +535,9 @@ function checkCollisions() {
             return;
         }
     }
-    
+}
+
+function checkDurianCollisions(prevSlicePos, currentFingerPos) {
     // 檢查榴槤碰撞
     for (let i = durians.length - 1; i >= 0; i--) {
         const durian = durians[i];
@@ -624,7 +555,7 @@ function checkCollisions() {
     }
 }
 
-function drawObjects() {
+function drawFruits() {
     // 繪製所有水果
     for (const fruit of fruits) {
         push();
@@ -661,7 +592,9 @@ function drawObjects() {
         }
         pop();
     }
-    
+}
+
+function drawBombs() {
     // 繪製炸彈
     for (const bomb of bombs) {
         push();
@@ -677,7 +610,9 @@ function drawObjects() {
         }
         pop();
     }
-    
+}
+
+function drawDurians() {
     // 繪製榴槤
     for (const durian of durians) {
         push();
@@ -719,8 +654,8 @@ function drawHandTracking() {
         for (let i = 0; i < sliceTrail.length - 1; i++) {
             const slice1 = sliceTrail[i];
             const slice2 = sliceTrail[i + 1];
-            const alpha = map(slice1.life, 0, TRAIL_LENGTH, 0, 255);
-            const thickness = map(slice1.life, 0, TRAIL_LENGTH, 2, 8);
+            const alpha = map(slice1.life, 0, GAME_SETTINGS.TRAIL_LENGTH, 0, 255);
+            const thickness = map(slice1.life, 0, GAME_SETTINGS.TRAIL_LENGTH, 2, 8);
             
             // 使用漸變色
             const hue = map(i, 0, sliceTrail.length, 0, 60);
@@ -732,39 +667,105 @@ function drawHandTracking() {
     }
 }
 
-// 輔助函數：檢查線段與圓形是否相交
-function lineCircleIntersect(lineStart, lineEnd, circleCenter, radius) {
-    const d = dist(lineStart.x, lineStart.y, lineEnd.x, lineEnd.y);
-    if (d === 0) return false;
-    
-    // 增加碰撞判定範圍
-    const expandedRadius = radius * 1.2; // 增加 20% 的判定範圍
-    
-    const dot = (((circleCenter.x - lineStart.x) * (lineEnd.x - lineStart.x)) + 
-                 ((circleCenter.y - lineStart.y) * (lineEnd.y - lineStart.y))) / (d * d);
-    
-    const closestX = lineStart.x + (dot * (lineEnd.x - lineStart.x));
-    const closestY = lineStart.y + (dot * (lineEnd.y - lineStart.y));
-    
-    // 放寬判定條件，允許線段延長線上的點
-    if (dot < -0.1 || dot > 1.1) {
-        // 檢查線段端點是否在圓內
-        const distToStart = dist(lineStart.x, lineStart.y, circleCenter.x, circleCenter.y);
-        const distToEnd = dist(lineEnd.x, lineEnd.y, circleCenter.x, circleCenter.y);
-        return distToStart <= expandedRadius || distToEnd <= expandedRadius;
+function drawHandDetectionMessage() {
+    if (hands.length === 0) {
+        fill(255, 255, 0, 220);
+        textAlign(CENTER, CENTER);
+        textSize(36);
+        text('請將手放在鏡頭前', width/2, height/2);
     }
-    
-    const distance = dist(closestX, closestY, circleCenter.x, circleCenter.y);
-    return distance <= expandedRadius;
 }
 
-// 當視窗大小改變時調整畫布大小
-function windowResized() {
-    resizeCanvas(windowWidth, windowHeight);
-    console.log('視窗調整後的畫布大小:', width, height);
+function drawBackground() {
+    if (backgroundImage) {
+        image(backgroundImage, 0, 0, width, height);
+    } else {
+        background(100);
+    }
 }
 
-window.addEventListener('DOMContentLoaded', () => {
+function updateGameTimer() {
+    let elapsed = (millis() - gameStartTime) / 1000;
+    let timeLeft = Math.max(0, 20 - Math.floor(elapsed));
+    gameTimer = timeLeft;
+    // 顯示剩餘時間
+    fill('#FFD700');
+    textAlign(RIGHT, TOP);
+    textSize(32);
+    text('剩餘時間: ' + gameTimer + ' 秒', width - 30, 30);
+}
+
+function resetGameState() {
+    score = 0;
+    lives = 3;
+    comboCount = 0;
+    fruits = [];
+    bombs = [];
+    durians = [];
+    bossFruit = null;
+    bossActive = false;
+    lastFruitTime = millis();
+    lastBossTime = millis();
+    gameTimer = 20;
+    gameStartTime = millis();
+    document.getElementById('gameStats').classList.remove('hidden');
+    document.getElementById('comboIndicator').classList.add('hidden');
+    updateStats();
+}
+
+function showGameUI() {
+    document.getElementById('gameStats').classList.remove('hidden');
+    document.getElementById('comboIndicator').classList.add('hidden');
+}
+
+function hideGameUI() {
+    document.getElementById('gameStats').classList.add('hidden');
+    document.getElementById('comboIndicator').classList.add('hidden');
+}
+
+function showGameOverScreen() {
+    document.getElementById('gameOverScreen').classList.remove('hidden');
+    document.getElementById('finalScore').textContent = score;
+
+    // 檢查是否達到下一關的條件
+    const nextLevelButton = document.getElementById('nextLevelButton');
+    if (currentLevel < 4 && score >= LEVEL_REQUIREMENTS[currentLevel - 1]) {
+        nextLevelButton.classList.remove('hidden');
+        nextLevelButton.textContent = `進入第 ${currentLevel + 1} 關`;
+        console.log('顯示下一關按鈕，當前分數:', score, '所需分數:', LEVEL_REQUIREMENTS[currentLevel - 1]);
+    } else {
+        nextLevelButton.classList.add('hidden');
+        console.log('隱藏下一關按鈕，當前分數:', score, '所需分數:', LEVEL_REQUIREMENTS[currentLevel - 1]);
+    }
+}
+
+function hideGameOverScreen() {
+    document.getElementById('gameOverScreen').classList.add('hidden');
+}
+
+function handleNextLevelButton() {
+    const nextLevelBtn = document.getElementById('nextLevelButton');
+    if (nextLevelBtn) {
+        nextLevelBtn.onclick = () => {
+            currentLevel++;
+            document.getElementById('gameOverScreen').classList.add('hidden');
+            document.getElementById('loadingScreen').classList.remove('hidden');
+            // 重新初始化手部偵測
+            handpose = ml5.handpose(video, {
+                flipHorizontal: true,
+                maxHands: 1,
+                detectionConfidence: 0.5,
+                maxNumHands: 1
+            }, () => {
+                console.log('手部偵測模型重新載入完成');
+                document.getElementById('loadingScreen').classList.add('hidden');
+                startGame();
+            });
+        };
+    }
+}
+
+function setupRuleModal() {
     const ruleBtn = document.getElementById('ruleButton');
     const ruleModal = document.getElementById('ruleModal');
     const closeRule = document.getElementById('closeRule');
@@ -772,8 +773,9 @@ window.addEventListener('DOMContentLoaded', () => {
         ruleBtn.onclick = () => ruleModal.classList.remove('hidden');
         closeRule.onclick = () => ruleModal.classList.add('hidden');
     }
+}
 
-    // 開始遊戲按鈕
+function setupStartButton() {
     const startBtn = document.getElementById('startButton');
     if(startBtn) {
         startBtn.onclick = () => {
@@ -788,37 +790,38 @@ window.addEventListener('DOMContentLoaded', () => {
             }, modelReady);
         };
     }
+}
 
-    // 更新關卡按鈕狀態
+function setupLevelButtons() {
     function updateLevelButtons() {
-    for(let i=1; i<=4; i++) {
-        const btn = document.getElementById('levelBtn'+i);
-        if(btn) {
+        for(let i=1; i<=4; i++) {
+            const btn = document.getElementById('levelBtn'+i);
+            if(btn) {
                 if(i > currentLevel) {
                     btn.classList.add('locked');
                     btn.onclick = null;
                 } else {
                     btn.classList.remove('locked');
-            btn.onclick = () => {
-                level = i;
-                document.getElementById('levelSelect').classList.add('hidden');
-                startGame();
-            };
+                    btn.onclick = () => {
+                        level = i;
+                        document.getElementById('levelSelect').classList.add('hidden');
+                        startGame();
+                    };
+                }
+            }
         }
     }
-        }
-    }
-
-    // 關卡選擇按鈕
     updateLevelButtons();
+}
 
-    // 重新開始按鈕
+function setupRestartButton() {
     const restartBtn = document.getElementById('restartButton');
     if(restartBtn) {
         restartBtn.onclick = restartGame;
     }
+}
 
-    // 返回選關按鈕
+function setupBackToLevelButton() {
     const backToLevelBtn = document.getElementById('backToLevelSelect');
     if(backToLevelBtn) {
         backToLevelBtn.onclick = () => {
@@ -827,8 +830,9 @@ window.addEventListener('DOMContentLoaded', () => {
             updateLevelButtons(); // 更新按鈕狀態
         };
     }
+}
 
-    // 退出選關按鈕
+function setupExitLevelButton() {
     const exitLevelBtn = document.getElementById('exitLevelSelect');
     if(exitLevelBtn) {
         exitLevelBtn.onclick = () => {
@@ -836,8 +840,9 @@ window.addEventListener('DOMContentLoaded', () => {
             document.getElementById('startScreen').classList.remove('hidden');
         };
     }
+}
 
-    // 下一關按鈕
+function setupNextLevelButton() {
     const nextLevelBtn = document.getElementById('nextLevelButton');
     if(nextLevelBtn) {
         nextLevelBtn.onclick = () => {
@@ -857,4 +862,4 @@ window.addEventListener('DOMContentLoaded', () => {
             });
         };
     }
-});
+}
