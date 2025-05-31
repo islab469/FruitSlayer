@@ -18,21 +18,137 @@ html, body {
 }
 
 .start-screen,
-.game-over-screen {
-    position: absolute;
-    top: 0; left: 0; right: 0; bottom: 0;
+.game-over-screen,
+#levelSelect {
+    position: fixed;
+    top: 0;
+    left: 0;
     width: 100vw;
     height: 100vh;
-    background: linear-gradient(135deg, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.95) 100%);
+    background: url('Assets/background.jpg') center center/cover no-repeat;
     display: flex;
     flex-direction: column;
     justify-content: center;
     align-items: center;
-    z-index: 10;
     color: #ffffff;
     text-align: center;
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
+    z-index: 5;
+}
+
+/* 遮罩層 */
+.start-screen::before,
+.game-over-screen::before,
+#levelSelect::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(135deg, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0.7) 100%);
+    pointer-events: none;
+    backdrop-filter: blur(5px);
+    -webkit-backdrop-filter: blur(5px);
+}
+
+/* 確保內容在遮罩層上方 */
+.start-screen > *:not(.decorative-fruits),
+.game-over-screen > *,
+#levelSelect > * {
+    position: relative;
+    z-index: 1;
+}
+
+/* 裝飾用水果 */
+.decorative-fruits {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    pointer-events: none;
+    z-index: 6;
+}
+
+.fruit-decor {
+    position: absolute;
+    width: 100px;
+    height: 100px;
+    animation: swayAnimation 3s ease-in-out infinite;
+}
+
+/* 設定不同水果的位置和大小 */
+.fruit-decor.apple1 {
+    top: 10%;
+    left: 8%;
+    animation-delay: 0.5s;
+    width: 130px;
+    height: 130px;
+}
+
+.fruit-decor.watermelon1 {
+    top: 18%;
+    right: 10%;
+    animation-delay: 0.8s;
+    width: 160px;
+    height: 160px;
+}
+
+.fruit-decor.banana1 {
+    bottom: 20%;
+    left: 10%;
+    animation-delay: 1.2s;
+    width: 110px;
+    height: 110px;
+}
+
+.fruit-decor.strawberry1 {
+    bottom: 18%;
+    right: 15%;
+    animation-delay: 1.5s;
+    width: 100px;
+    height: 100px;
+}
+
+.fruit-decor.pitaya1 {
+    top: 30%;
+    right: 25%;
+    animation-delay: 2.1s;
+    width: 120px;
+    height: 120px;
+}
+
+.fruit-decor.durian1 {
+    top: 35%;
+    left: 18%;
+    animation-delay: 2.4s;
+    width: 140px;
+    height: 140px;
+}
+
+@keyframes swayAnimation {
+    0% {
+        transform: translateX(0) rotate(0deg) scale(1);
+    }
+    25% {
+        transform: translateX(10px) rotate(5deg) scale(1.05);
+    }
+    75% {
+        transform: translateX(-10px) rotate(-5deg) scale(0.95);
+    }
+    100% {
+        transform: translateX(0) rotate(0deg) scale(1);
+    }
+}
+
+/* UI 元素 */
+.game-logo {
+    position: relative;
+    max-width: 50%;
+    width: 300px;
+    height: auto;
+    margin-bottom: 3vw;
+    filter: drop-shadow(0 0 15px rgba(255, 215, 0, 0.3));
 }
 
 .start-screen h1,
@@ -50,8 +166,8 @@ html, body {
 
 .start-screen p,
 .game-over-screen p {
-    font-size: 1.8vw;
-    margin: 2vw 0;
+    font-size: 1.2vw;
+    margin: 1.5vw 0;
     color: rgba(255, 255, 255, 0.9);
     line-height: 1.6;
     max-width: 80%;
@@ -59,24 +175,59 @@ html, body {
 
 .start-screen small,
 .game-over-screen small {
-    font-size: 1.2vw;
+    font-size: 1vw;
     color: rgba(255, 255, 255, 0.6);
+    margin-top: 2vw;
+    display: block;
 }
 
+/* 選關畫面特別樣式 */
+#levelSelect .level-buttons {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2vw;
+    margin: 2vw 0;
+    justify-items: center;
+    width: 80%;
+    max-width: 1200px;
+}
+
+/* 結算畫面特別樣式 */
+.game-over-screen h1 {
+    margin-bottom: 2vw;
+}
+
+.game-over-screen p {
+    font-size: 1.5vw;
+    margin: 1vw 0;
+}
+
+.game-over-buttons {
+    display: flex;
+    gap: 1vw;
+    margin-top: 2vw;
+}
+
+/* 按鈕樣式統一調整 */
 button {
+    position: relative;
+    z-index: 1;
     background: linear-gradient(45deg, #FFB347, #FFCC33);
     color: #1a1a1a;
     border: none;
-    padding: 1.2vw 3vw;
-    font-size: 1.6vw;
+    padding: 0.8vw 2.5vw;
+    font-size: 1.2vw;
     font-weight: 700;
-    border-radius: 50px;
+    border-radius: 25px;
     cursor: pointer;
-    margin: 2vw;
+    margin: 1vw;
     transition: all 0.3s ease;
     box-shadow: 0 5px 15px rgba(255, 179, 71, 0.4);
     text-transform: uppercase;
     letter-spacing: 1px;
+    min-width: 180px;
 }
 
 button:hover {
@@ -163,17 +314,18 @@ button:active {
 
     .start-screen p,
     .game-over-screen p {
-        font-size: 4vw;
+        font-size: 3vw;
     }
 
     .start-screen small,
     .game-over-screen small {
-        font-size: 3vw;
+        font-size: 2.5vw;
     }
 
     button {
-        font-size: 4vw;
-        padding: 3vw 6vw;
+        font-size: 3vw;
+        padding: 2vw 4vw;
+        min-width: 140px;
     }
 
     .game-stats div,
@@ -185,6 +337,11 @@ button:active {
     .combo-indicator {
         font-size: 8vw;
     }
+
+    .game-logo {
+        width: 250px;
+        max-width: 70%;
+    }
 }
 
 .hidden {
@@ -194,7 +351,10 @@ button:active {
 .modal {
     position: fixed;
     z-index: 1000;
-    left: 0; top: 0; width: 100vw; height: 100vh;
+    left: 0;
+    top: 0;
+    width: 100vw;
+    height: 100vh;
     background: rgba(0,0,0,0.7);
     display: flex;
     justify-content: center;
@@ -269,13 +429,6 @@ button:active {
     background: linear-gradient(45deg, #2E7D32, #558B2F);
 }
 
-.level-buttons button.locked::before {
-    content: "🔒";
-    margin-right: 10px;
-    font-size: 1.2em;
-    vertical-align: middle;
-}
-
 @media (max-width: 900px) {
     .level-buttons {
         grid-template-columns: 1fr;
@@ -289,18 +442,28 @@ button:active {
 
 .exit-btn {
     position: absolute;
-    top: 2vw;
-    right: 2vw;
-    background: transparent;
+    top: 20px;
+    right: 20px;
+    background: rgba(0, 0, 0, 0.5);
     color: #FFD700;
-    font-size: 2.5vw;
-    border: none;
+    font-size: 1.2rem;
+    padding: 10px 20px;
+    border-radius: 10px;
+    border: 2px solid rgba(255, 215, 0, 0.3);
     cursor: pointer;
     z-index: 20;
-    transition: color 0.2s;
+    transition: all 0.3s ease;
 }
+
 .exit-btn:hover {
-    color: #ff3333;
+    background: rgba(255, 51, 51, 0.7);
+    color: white;
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(255, 51, 51, 0.4);
+}
+
+.exit-btn:active {
+    transform: translateY(1px);
 }
 
 /* 載入畫面樣式 */
@@ -374,4 +537,66 @@ button:active {
     .loading-bar-container {
         width: 80vw;
     }
+}
+
+.pause-menu {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.8);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+}
+
+.pause-content {
+    background: rgba(0, 0, 0, 0.9);
+    padding: 2rem;
+    border-radius: 20px;
+    text-align: center;
+    border: 2px solid rgba(255, 215, 0, 0.3);
+    box-shadow: 0 0 20px rgba(255, 215, 0, 0.2);
+}
+
+.pause-content h2 {
+    color: #FFD700;
+    font-size: 2.5rem;
+    margin-bottom: 2rem;
+    text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+}
+
+.pause-content button {
+    display: block;
+    width: 100%;
+    margin: 1rem 0;
+    padding: 1rem 2rem;
+    font-size: 1.2rem;
+    background: linear-gradient(45deg, #4CAF50, #8BC34A);
+    color: white;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.pause-content button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(76, 175, 80, 0.4);
+}
+
+.pause-content button:active {
+    transform: translateY(1px);
+}
+
+.pause-content #exitToMenu {
+    background: linear-gradient(45deg, #f44336, #ff5722);
+}
+
+.pause-content #exitToMenu:hover {
+    box-shadow: 0 5px 15px rgba(244, 67, 54, 0.4);
 }
