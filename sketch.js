@@ -8,6 +8,15 @@ let comboCount = 0;
 let lastSliceTime = 0;
 const LEVEL_REQUIREMENTS = [10, 10, 10, 10]; // 每關所需分數，調整為更合理的數值
 
+// 桃子特殊機制相關變數
+let peachActive = false;
+let peachSliceCount = 0;
+let peachTimer = 15;
+let peachStartTime = 0;
+let peachImage;
+let peachPosition = { x: 0, y: 0, size: 120 };
+let sliceCountDisplay = { text: '', alpha: 0, y: 0 };
+
 // 設為全域變數
 window.FRUIT_TYPES = ['apple', 'banana', 'watermelon', 'strawberry', 'tomato', 'guava', 'pitaya', 'lemon'];
 
@@ -143,6 +152,12 @@ function preload() {
         durianImage = loadImage('./Assets/durian1.png', 
             () => console.log('榴槤圖片載入成功'),
             () => console.error('榴槤圖片載入失敗')
+        );
+
+        // 載入桃子圖片
+        peachImage = loadImage('./Assets/peach.png',
+            () => console.log('桃子圖片載入成功'),
+            () => console.error('桃子圖片載入失敗')
         );
     } catch (error) {
         console.error('圖片載入過程中發生錯誤:', error);
@@ -284,24 +299,35 @@ function draw() {
         updateBackgroundFruits();
         drawBackgroundFruits();
     } else if (gameState === 'playing') {
-        // 倒數計時
-        let elapsed = (millis() - gameStartTime) / 1000;
-        let timeLeft = Math.max(0, 20 - Math.floor(elapsed));
-        gameTimer = timeLeft;
+        // 只在非桃子模式時更新主遊戲時間
+        if (!peachActive) {
+            let elapsed = (millis() - gameStartTime) / 1000;
+            let timeLeft = Math.max(0, 20 - Math.floor(elapsed));
+            gameTimer = timeLeft;
+            
+            // 在剩餘10秒時生成桃子（如果還沒生成的話）
+            if (timeLeft === 10 && !peachActive) {
+                generatePeach();
+            }
+        }
+        
         // 顯示剩餘時間
         fill('#FFD700');
         textAlign(RIGHT, TOP);
         textSize(32);
         text('剩餘時間: ' + gameTimer + ' 秒', width - 30, 30);
+        
         // 時間到自動結束
-        if (gameTimer <= 0) {
+        if (gameTimer <= 0 && !peachActive) {
             gameOver();
             return;
         }
+        
         updateHandTracking();
         updateGameLogic();
         drawObjects();
         drawHandTracking();
+        
         if (hands.length === 0) {
             fill(255, 255, 0, 220);
             textAlign(CENTER, CENTER);
@@ -427,36 +453,94 @@ function updateHandTracking() {
 
 function updateGameLogic() {
     const currentTime = millis();
-    // 根據選擇的關卡調整生成間隔與最大物件數與速度
-    let fruitInterval = FRUIT_INTERVAL;
-    let maxObjects = MAX_FRUITS;
     
-    // 關卡速度設定
-    if (level === 1) {
-        fruitInterval *= 1.5;  // Lv1 最慢速度
-        maxObjects = 4;
-    } else if (level === 2) {
-        fruitInterval *= 1.0;  // Lv2 正常速度
-        maxObjects = 6;
-    } else if (level === 3) {
-        fruitInterval *= 0.7;  // Lv3 快速
-        maxObjects = 8;
-    } else if (level === 4) {
-        fruitInterval *= 0.4;  // Lv4 超快
-        maxObjects = 10;
-    }
-    
-    if (currentTime - lastFruitTime > fruitInterval) {
-        if (fruits.length + bombs.length + durians.length < maxObjects) {
-            generateObject();
-            lastFruitTime = currentTime;
+    // 更新桃子狀態
+    if (peachActive) {
+        // 只在桃子時間內更新桃子的計時器
+        const elapsedPeachTime = (currentTime - peachStartTime) / 1000;
+        peachTimer = Math.max(0, 15 - Math.floor(elapsedPeachTime));
+        
+        // 更新桃子位置
+        if (!peachPosition.reachedTop) {
+            // 更新速度和位置
+            peachPosition.speedY += peachPosition.gravity;
+            peachPosition.x += peachPosition.speedX;
+            peachPosition.y += peachPosition.speedY;
+            
+            // 檢查是否到達頂點位置（在畫面上方約1/4處）
+            if (peachPosition.y <= height * 0.25) {
+                peachPosition.y = height * 0.25;
+                peachPosition.speedY = 0;
+                peachPosition.speedX = 0;
+                peachPosition.gravity = 0;
+                peachPosition.reachedTop = true;
+                // 重設計時器，確保從停止時開始計時
+                peachStartTime = currentTime;
+            }
+        } else if (peachTimer <= 0) {
+            // 只有在計時結束後才開始下落
+            peachPosition.gravity = 0.8;  // 恢復重力
+            peachPosition.speedY += peachPosition.gravity;
+            peachPosition.y += peachPosition.speedY;
+            
+            // 當桃子完全離開畫面時才結束
+            if (peachPosition.y > height + 100) {
+                // 計算額外分數
+                const bonusScore = calculatePeachBonus(peachSliceCount);
+                score += bonusScore;
+                
+                // 顯示最終得分
+                sliceCountDisplay = {
+                    text: `+${bonusScore}分！`,
+                    alpha: 255,
+                    y: height / 2
+                };
+                
+                peachActive = false;
+                updateStats();
+            }
         }
     }
     
-    updateFruits();
-    updateBombs();
-    updateDurians();
-
+    // 更新切割次數顯示效果
+    if (sliceCountDisplay.alpha > 0) {
+        sliceCountDisplay.alpha -= 5;
+        sliceCountDisplay.y -= 1;
+    }
+    
+    // 只在非桃子模式時更新遊戲時間和生成新物件
+    if (!peachActive) {
+        // 根據選擇的關卡調整生成間隔與最大物件數與速度
+        let fruitInterval = FRUIT_INTERVAL;
+        let maxObjects = MAX_FRUITS;
+        
+        // 關卡速度設定
+        if (level === 1) {
+            fruitInterval *= 1.5;
+            maxObjects = 4;
+        } else if (level === 2) {
+            fruitInterval *= 1.0;
+            maxObjects = 6;
+        } else if (level === 3) {
+            fruitInterval *= 0.7;
+            maxObjects = 8;
+        } else if (level === 4) {
+            fruitInterval *= 0.4;
+            maxObjects = 10;
+        }
+        
+        if (currentTime - lastFruitTime > fruitInterval) {
+            if (fruits.length + bombs.length + durians.length < maxObjects) {
+                generateObject();
+                lastFruitTime = currentTime;
+            }
+        }
+        
+        updateFruits();
+        updateBombs();
+        updateDurians();
+    }
+    
     checkCollisions();
     if (comboCount > 0 && currentTime - lastSliceTime > 2000) {
         comboCount = 0;
@@ -465,8 +549,9 @@ function updateGameLogic() {
 
 function generateObject() {
     const rand = random(1);
+    
     if (level === 1) {
-        // Lv1：只產生水果，無障礙物
+        // Lv1：只產生水果
         generateFruit();
     } else if (level === 2) {
         // Lv2：90% 水果，10% 榴槤
@@ -557,6 +642,27 @@ function generateDurian() {
     });
 }
 
+function generatePeach() {
+    if (peachActive) return;
+    
+    peachActive = true;
+    peachSliceCount = 0;
+    peachTimer = 15;
+    peachStartTime = millis();
+    
+    // 從畫面下方生成，像普通水果一樣
+    peachPosition = {
+        x: width / 2,  // 固定在畫面中央
+        y: height + 50,  // 從畫面下方開始
+        size: 120,
+        rotation: 0,
+        speedX: 0,  // 移除水平速度
+        speedY: -25,  // 固定的向上初始速度
+        gravity: 0.8,  // 重力加速度
+        reachedTop: false  // 是否到達頂點
+    };
+}
+
 function updateFruits() {
     for (let i = fruits.length - 1; i >= 0; i--) {
         const fruit = fruits[i];
@@ -623,6 +729,28 @@ function checkCollisions() {
     
     if (!prevSlicePos) return;
     
+    // 檢查桃子碰撞
+    if (peachActive) {
+        if (lineCircleIntersect(prevSlicePos, currentFingerPos, 
+            createVector(peachPosition.x, peachPosition.y), peachPosition.size/2)) {
+            peachSliceCount++;
+            
+            // 顯示切割次數的動態效果
+            sliceCountDisplay = {
+                text: peachSliceCount + '次',
+                alpha: 255,
+                y: peachPosition.y - 50
+            };
+            
+            // 每次切到時稍微改變位置
+            peachPosition.x += random(-50, 50);
+            peachPosition.x = constrain(peachPosition.x, peachPosition.size/2, width - peachPosition.size/2);
+            peachPosition.y += random(-50, 50);
+            peachPosition.y = constrain(peachPosition.y, peachPosition.size/2, height - peachPosition.size/2);
+            peachPosition.rotation += random(-PI/4, PI/4);
+        }
+    }
+    
     // 檢查水果碰撞
     for (let i = fruits.length - 1; i >= 0; i--) {
         const fruit = fruits[i];
@@ -677,6 +805,48 @@ function checkCollisions() {
 }
 
 function drawObjects() {
+    // 繪製桃子（如果處於活動狀態）
+    if (peachActive) {
+        push();
+        translate(peachPosition.x, peachPosition.y);
+        rotate(peachPosition.rotation);
+        
+        // 添加發光效果
+        drawingContext.shadowBlur = 20;
+        drawingContext.shadowColor = 'rgba(255, 192, 203, 0.7)';
+        
+        if (peachImage) {
+            imageMode(CENTER);
+            image(peachImage, 0, 0, peachPosition.size, peachPosition.size);
+        } else {
+            fill(255, 182, 193);
+            ellipse(0, 0, peachPosition.size, peachPosition.size);
+        }
+        
+        // 顯示剩餘時間
+        textAlign(CENTER);
+        textSize(24);
+        fill(255);
+        text(peachTimer + '秒', 0, -peachPosition.size/2 - 20);
+        
+        // 顯示當前切割次數
+        textSize(32);
+        fill(255, 215, 0);
+        text(peachSliceCount + '次', 0, peachPosition.size/2 + 30);
+        
+        pop();
+        
+        // 繪製切割次數的動態效果
+        if (sliceCountDisplay.alpha > 0) {
+            push();
+            textAlign(CENTER);
+            textSize(40);
+            fill(255, 215, 0, sliceCountDisplay.alpha);
+            text(sliceCountDisplay.text, width/2, sliceCountDisplay.y);
+            pop();
+        }
+    }
+    
     // 繪製所有水果
     for (const fruit of fruits) {
         push();
@@ -996,3 +1166,23 @@ window.addEventListener('DOMContentLoaded', () => {
         };
     }
 });
+
+// 計算桃子分數的函數
+function calculatePeachBonus(sliceCount) {
+    // 基礎分數：每切一次得5分
+    let baseScore = sliceCount * 5;
+    
+    // 額外獎勵：
+    // 10次以上：額外獎勵50分
+    // 20次以上：額外獎勵100分
+    // 30次以上：額外獎勵200分
+    if (sliceCount >= 30) {
+        baseScore += 200;
+    } else if (sliceCount >= 20) {
+        baseScore += 100;
+    } else if (sliceCount >= 10) {
+        baseScore += 50;
+    }
+    
+    return baseScore;
+}
