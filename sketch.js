@@ -1,15 +1,13 @@
-// 遊戲狀態
-let gameState = 'start'; // 'start', 'playing', 'gameover'
+let gameState = 'start';
 let score = 0;
 let lives = 3;
-let level = 1;  // 玩家選擇的關卡
-let currentLevel = 1; // 當前進度等級（用於解鎖下一關）
-let levelScores = [0, 0, 0, 0]; // 儲存每個關卡的最高分數
+let level = 1;
+let currentLevel = 1;
+let levelScores = [0, 0, 0, 0];
 let comboCount = 0;
 let lastSliceTime = 0;
-const LEVEL_REQUIREMENTS = [100, 100, 100, 100]; // 每關所需分數，統一設為100分
+const LEVEL_REQUIREMENTS = [100, 100, 100, 100];
 
-// 桃子特殊機制相關變數
 let peachActive = false;
 let peachSliceCount = 0;
 let peachTimer = 15;
@@ -17,12 +15,10 @@ let peachStartTime = 0;
 let peachImage;
 let peachPosition = { x: 0, y: 0, size: 120 };
 let sliceCountDisplay = { text: '', alpha: 0, y: 0 };
-let isSlicingPeach = false;  // 新增：追蹤是否正在切割桃子
+let isSlicingPeach = false;
 
-// 設為全域變數
 window.FRUIT_TYPES = ['apple', 'banana', 'watermelon', 'strawberry', 'tomato', 'guava', 'pitaya', 'lemon'];
 
-// P5.js 變數
 let video;
 let handpose;
 let hands = [];
@@ -32,31 +28,27 @@ let durians = [];
 let bossActive = false;
 let bossFruit = null;
 
-// 手部追踪變數
-// 在全域宣告這兩個變數
 let minFingerX = Infinity;
 let maxFingerX = -Infinity;
 let fingerPositions = [];
 let sliceTrail = [];
 let lastFingerPos = null;
 let lastValidHandTime = 0;
-const TRAIL_LENGTH = 10; // 減少軌跡長度，使軌跡更精確
-const SMOOTHING_FACTOR = 0.3; // 降低平滑因子，使移動更靈敏
-const HAND_LOST_THRESHOLD = 800; // 減少手部失去偵測的閾值
-const MAX_MOVEMENT_DISTANCE = 50; // 減少最大允許移動距離
-const MIN_CONFIDENCE = 0.4; // 提高最小信心度閾值
+const TRAIL_LENGTH = 10;
+const SMOOTHING_FACTOR = 0.3;
+const HAND_LOST_THRESHOLD = 800;
+const MAX_MOVEMENT_DISTANCE = 50;
+const MIN_CONFIDENCE = 0.4;
 
-// 遊戲設定
 const MAX_FRUITS = 5;
-const FRUIT_INTERVAL = 1000; // 水果生成間隔（毫秒）
+const FRUIT_INTERVAL = 1000;
 let lastFruitTime = 0;
-const BOSS_INTERVAL = 30000; // Boss 出現間隔（毫秒）
+const BOSS_INTERVAL = 30000;
 let lastBossTime = 0;
 
-// 
 let backgroundFruits = [];
 let fruitImages = [];
-let fruitSlicedImages = []; // 新增：切開後的水果圖片
+let fruitSlicedImages = [];
 let bombImage;
 let durianImage;
 let backgroundImage;
@@ -64,31 +56,26 @@ let sliceSound;
 let bombSound;
 let durianSound;
 
-// 新增全域變數
-let gameTimer = 20; // 秒
+let gameTimer = 20;
 let gameStartTime = 0;
-let isPaused = false;  // 確保只有一個 isPaused 變數
+let isPaused = false;
 
-// 受傷效果相關變數
 let isHurt = false;
 let hurtTimer = 0;
-let hurtDuration = 500; // 閃爍持續時間（毫秒）
+let hurtDuration = 500;
 let leftHandImage;
 let rightHandImage;
 let handShowTimer = 0;
-let handShowDuration = 1000; // 手顯示持續時間（毫秒）
+let handShowDuration = 1000;
 let showHands = false;
 
-// 預加載圖片
 function preload() {
     try {
-        // 背景圖片
         backgroundImage = loadImage('./Assets/background.jpg', 
             () => console.log('背景圖片載入成功'),
             () => console.error('背景圖片載入失敗')
         );
         
-        // 水果圖片（未切開）
         fruitImages['apple'] = loadImage('./Assets/apple1.png', 
             () => console.log('蘋果圖片載入成功'),
             () => console.error('蘋果圖片載入失敗')
@@ -122,7 +109,6 @@ function preload() {
             () => console.error('檸檬圖片載入失敗')
         );
 
-        // 水果圖片（切開後）
         fruitSlicedImages['apple'] = loadImage('./Assets/apple2.png', 
             () => console.log('切開的蘋果圖片載入成功'),
             () => console.error('切開的蘋果圖片載入失敗')
@@ -156,7 +142,6 @@ function preload() {
             () => console.error('切開的檸檬圖片載入失敗')
         );
         
-        // 障礙物圖片
         bombImage = loadImage('./Assets/boom.png', 
             () => console.log('炸彈圖片載入成功'),
             () => console.error('炸彈圖片載入失敗')
@@ -166,13 +151,11 @@ function preload() {
             () => console.error('榴槤圖片載入失敗')
         );
 
-        // 載入桃子圖片
         peachImage = loadImage('./Assets/peach.png',
             () => console.log('桃子圖片載入成功'),
             () => console.error('桃子圖片載入失敗')
         );
 
-        // 載入手的圖片
         leftHandImage = loadImage('./Assets/LeftHand.png',
             () => console.log('左手圖片載入成功'),
             () => console.error('左手圖片載入失敗')
@@ -187,37 +170,32 @@ function preload() {
 }
 
 function setup() {
-    // 創建畫布
     let canvas = createCanvas(windowWidth, windowHeight);
     let ctx = canvas.elt.getContext('2d', { willReadFrequently: true });    
     canvas.parent('gameContainer');
     canvas.style('background', 'transparent');
     
-    // 設置視訊
     video = createCapture(VIDEO);
     video.size(640, 480);
     video.hide();
 
-    // 添加鍵盤事件監聽
     window.addEventListener('keydown', handleKeyPress);
 }
 
 function modelReady() {
     console.log('Handpose model ready!');
     
-    // 在模型載入完成後設置手部追踪事件
     handpose.on('predict', results => {
         hands = results;
     });
     
-    // 模型載入完成後，顯示關卡選擇畫面
     document.getElementById('loadingScreen').classList.add('hidden');
     document.getElementById('levelSelect').classList.remove('hidden');
 }
 
 function startGame() {
     gameState = 'playing';
-    console.log('遊戲狀態:', gameState);  // 除錯用
+    console.log('遊戲狀態:', gameState);
     score = 0;
     lives = 3;
     comboCount = 0;
@@ -230,11 +208,11 @@ function startGame() {
     lastBossTime = millis();
     gameTimer = 20;
     gameStartTime = millis();
-    isPaused = false;  // 確保開始時不是暫停狀態
-    loop();  // 確保遊戲循環運行
+    isPaused = false;
+    loop();
     document.getElementById('gameStats').classList.remove('hidden');
     document.getElementById('comboIndicator').classList.add('hidden');
-    document.getElementById('pauseMenu').classList.add('hidden');  // 確保暫停選單是隱藏的
+    document.getElementById('pauseMenu').classList.add('hidden');
     updateStats();
 }
 
@@ -250,16 +228,13 @@ function gameOver() {
     document.getElementById('gameOverScreen').classList.remove('hidden');
     document.getElementById('finalScore').textContent = score;
 
-    // 更新當前關卡的最高分數
     if (score > levelScores[level - 1]) {
         levelScores[level - 1] = score;
     }
 
-    // 檢查是否達到當前關卡的要求分數
     if (score >= LEVEL_REQUIREMENTS[level - 1]) {
-        // 只有當前關卡是最高解鎖關卡時才解鎖下一關
         if (level === currentLevel && currentLevel < 4) {
-            currentLevel = level + 1; // 只解鎖下一關
+            currentLevel = level + 1;
         }
         const nextLevelButton = document.getElementById('nextLevelButton');
         if (nextLevelButton) {
@@ -281,7 +256,6 @@ function gameOver() {
 function updateStats() {
     const scoreSpan = document.getElementById('score');
     const livesSpan = document.getElementById('lives');
-    // 顯示當前分數和當前關卡所需分數
     const currentLevelRequirement = LEVEL_REQUIREMENTS[level - 1];
     scoreSpan.textContent = `${score} / ${currentLevelRequirement}`;
     livesSpan.textContent = lives;
@@ -296,7 +270,6 @@ function showCombo() {
     comboIndicator.classList.remove('hidden');
     comboIndicator.classList.add('show');
     
-    // 動畫持續1.5秒後隱藏
     setTimeout(() => {
         comboIndicator.classList.remove('show');
         setTimeout(() => {
@@ -306,9 +279,7 @@ function showCombo() {
 }
 
 function draw() {
-    // 檢查遊戲狀態和暫停狀態
     if (isPaused) {
-        // 在暫停時仍然繪製背景和暫停選單
         if (backgroundImage) {
             image(backgroundImage, 0, 0, width, height);
         } else {
@@ -319,7 +290,6 @@ function draw() {
     
     clear();
     
-    // 繪製背景
     if (backgroundImage) {
         image(backgroundImage, 0, 0, width, height);
     } else {
@@ -327,31 +297,26 @@ function draw() {
     }
 
     if (gameState === 'start') {
-        // 處理開始畫面的背景裝飾水果
         updateBackgroundFruits();
         drawBackgroundFruits();
     } else if (gameState === 'playing') {
-        // 只在非桃子模式時更新主遊戲時間
         if (!peachActive) {
             let elapsed = (millis() - gameStartTime) / 1000;
             let timeLeft = Math.max(0, 20 - Math.floor(elapsed));
             gameTimer = timeLeft;
             
-            // 在遊戲時間歸零時生成桃子
             if (timeLeft === 0 && !peachActive) {
                 generatePeach();
             }
         }
         
-        // 顯示剩餘時間
         fill('#FFD700');
         textAlign(RIGHT, TOP);
         textSize(32);
         text('剩餘時間: ' + gameTimer + ' 秒', width - 30, 30);
         
-        // 時間到自動結束（改為只在非桃子模式時檢查）
         if (gameTimer <= 0 && !peachActive) {
-            generatePeach();  // 生成桃子
+            generatePeach();
         }
         
         updateHandTracking();
@@ -359,7 +324,6 @@ function draw() {
         drawObjects();
         drawHandTracking();
         
-        // 繪製受傷效果
         drawHurtEffect();
         drawHands();
         
@@ -373,25 +337,22 @@ function draw() {
 }
 
 function updateBackgroundFruits() {
-    // 偶爾生成背景水果
-    if (random(1) < 0.02) { // 2% 機率生成
+    if (random(1) < 0.02) {
         backgroundFruits.push({
             x: random(width),
             y: height + 50,
-            speedY: random(-3, -1), // 較慢的上升速度
+            speedY: random(-3, -1),
             type: random(FRUIT_TYPES),
             size: random(60, 100),
             opacity: random(100, 180)
         });
     }
     
-    // 更新背景水果位置
     for (let i = backgroundFruits.length - 1; i >= 0; i--) {
         const fruit = backgroundFruits[i];
         fruit.y += fruit.speedY;
-        fruit.speedY += 0.1; // 輕微重力
+        fruit.speedY += 0.1;
         
-        // 移除離開畫面的水果
         if (fruit.y < -100 || fruit.y > height + 100) {
             backgroundFruits.splice(i, 1);
         }
@@ -415,7 +376,6 @@ function updateHandTracking() {
     if (hands.length > 0) {
         const hand = hands[0];
         
-        // 檢查信心度
         if (hand.confidence < MIN_CONFIDENCE) {
             if (lastFingerPos) {
                 fingerPositions = [lastFingerPos.copy()];
@@ -423,26 +383,21 @@ function updateHandTracking() {
             return;
         }
         
-        // 使用食指和中指的指尖位置來計算更準確的位置
         const indexFinger = hand.annotations.indexFinger[3];
         const middleFinger = hand.annotations.middleFinger[3];
         
-        // 計算兩個指尖的平均位置
         const avgX = (indexFinger[0] + middleFinger[0]) / 2;
         const avgY = (indexFinger[1] + middleFinger[1]) / 2;
 
         const newX = avgX * width / video.width;
         const newY = avgY * height / video.height;
 
-        // 更新偵測範圍
         minFingerX = Math.min(minFingerX, newX);
         maxFingerX = Math.max(maxFingerX, newX);
         
-        // 檢查移動距離是否合理
         if (lastFingerPos) {
             const distance = dist(lastFingerPos.x, lastFingerPos.y, newX, newY);
             if (distance > MAX_MOVEMENT_DISTANCE) {
-                // 如果移動距離過大，使用更平滑的過渡
                 const smoothedX = lastFingerPos.x + (newX - lastFingerPos.x) * 0.2;
                 const smoothedY = lastFingerPos.y + (newY - lastFingerPos.y) * 0.2;
                 fingerPositions = [createVector(smoothedX, smoothedY)];
@@ -451,7 +406,6 @@ function updateHandTracking() {
             }
         }
         
-        // 平滑處理
         if (lastFingerPos) {
             const smoothedX = lastFingerPos.x + (newX - lastFingerPos.x) * SMOOTHING_FACTOR;
             const smoothedY = lastFingerPos.y + (newY - lastFingerPos.y) * SMOOTHING_FACTOR;
@@ -462,10 +416,8 @@ function updateHandTracking() {
             lastFingerPos = createVector(newX, newY);
         }
 
-        // 更新最後有效手部偵測時間
         lastValidHandTime = currentTime;
 
-        // 添加到斬擊軌跡
         if (fingerPositions.length > 0) {
             sliceTrail.push({
                 pos: fingerPositions[0].copy(),
@@ -473,7 +425,6 @@ function updateHandTracking() {
             });
         }
     } else {
-        // 檢查是否超過手部失去偵測的閾值
         if (currentTime - lastValidHandTime > HAND_LOST_THRESHOLD) {
             lastFingerPos = null;
             fingerPositions = [];
@@ -482,26 +433,20 @@ function updateHandTracking() {
         }
     }
 
-    // 移除過期的軌跡
     sliceTrail = sliceTrail.filter(slice => --slice.life > 0);
 }
 
 function updateGameLogic() {
     const currentTime = millis();
     
-    // 更新桃子狀態
     if (peachActive) {
-        // 更新計時器
         const elapsedPeachTime = (currentTime - peachStartTime) / 1000;
         peachTimer = Math.max(0, 5 - elapsedPeachTime);
 
-        // 時間到直接結算
         if (peachTimer <= 0) {
-            // 計算額外分數
             const bonusScore = calculatePeachBonus(peachSliceCount);
             score += bonusScore;
             
-            // 顯示最終得分
             sliceCountDisplay = {
                 text: `+${bonusScore}分！`,
                 alpha: 255,
@@ -510,24 +455,20 @@ function updateGameLogic() {
             
             peachActive = false;
             updateStats();
-            gameOver();  // 直接結束遊戲
+            gameOver();
             return;
         }
     }
     
-    // 更新切割次數顯示效果
     if (sliceCountDisplay.alpha > 0) {
         sliceCountDisplay.alpha -= 5;
         sliceCountDisplay.y -= 1;
     }
     
-    // 只在非桃子模式時更新遊戲時間和生成新物件
     if (!peachActive) {
-        // 根據選擇的關卡調整生成間隔與最大物件數與速度
         let fruitInterval = FRUIT_INTERVAL;
         let maxObjects = MAX_FRUITS;
         
-        // 關卡速度設定
         if (level === 1) {
             fruitInterval *= 1.5;
             maxObjects = 4;
@@ -564,17 +505,14 @@ function generateObject() {
     const rand = random(1);
     
     if (level === 1) {
-        // Lv1：只產生水果
         generateFruit();
     } else if (level === 2) {
-        // Lv2：90% 水果，10% 榴槤
         if (rand < 0.9) {
             generateFruit();
         } else {
             generateDurian();
         }
     } else if (level === 3) {
-        // Lv3：80% 水果，10% 榴槤，10% 炸彈
         if (rand < 0.8) {
             generateFruit();
         } else if (rand < 0.9) {
@@ -583,7 +521,6 @@ function generateObject() {
             generateBomb();
         }
     } else {
-        // Lv4：70% 水果，15% 榴槤，15% 炸彈
         if (rand < 0.7) {
             generateFruit();
         } else if (rand < 0.85) {
@@ -598,11 +535,28 @@ function generateFruit() {
     const type = random(FRUIT_TYPES);
     console.log('生成水果:', type, '圖片是否存在:', !!fruitImages[type]);
     
-    // 從畫面下方較遠的位置生成，使出現更自然
-    const x = random(width * 0.1, width * 0.9);  // 避免在邊緣生成
-    const y = height + 100;  // 從畫面更下方開始
-    const speedX = random(-2, 2);  // 適當的水平速度
-    const speedY = random(-25, -20);  // 更大的向上初始速度
+    const targetPeakY = height * 0.3;
+    
+    const x = random(width * 0.1, width * 0.9);
+    const y = height + 100;
+    
+    const gravity = 0.4;
+    const heightDiff = y - targetPeakY;
+    const initialSpeedY = -Math.sqrt(2 * gravity * heightDiff);
+    
+    const timeToPeak = -initialSpeedY / gravity;
+    
+    let speedX;
+    const screenCenter = width / 2;
+    const distanceFromCenter = x - screenCenter;
+    const maxSpeedX = 4;
+    
+    if (Math.abs(distanceFromCenter) > width * 0.2) {
+        speedX = -Math.sign(distanceFromCenter) * (maxSpeedX * Math.abs(distanceFromCenter) / (width/2));
+    } else {
+        speedX = random(-2, 2);
+    }
+    
     const rotationSpeed = random(-0.1, 0.1);
     const size = random(80, 120);
     
@@ -611,47 +565,77 @@ function generateFruit() {
         x,
         y,
         speedX,
-        speedY,
+        speedY: initialSpeedY,
         rotation: 0,
         rotationSpeed,
         size,
         sliced: false,
-        gravity: 0.4  // 添加重力參數
+        gravity: gravity
     });
 }
 
 function generateBomb() {
+    const targetPeakY = height * 0.3;
     const x = random(width * 0.1, width * 0.9);
     const y = height + 50;
-    const speedX = random(-2, 2);
-    const speedY = random(-16, -13); // 增加向上的速度
-    const size = 80; // 增加炸彈大小
+    const gravity = 0.2;
+    const heightDiff = y - targetPeakY;
+    const initialSpeedY = -Math.sqrt(2 * gravity * heightDiff);
+    
+    const screenCenter = width / 2;
+    const distanceFromCenter = x - screenCenter;
+    const maxSpeedX = 3;
+    
+    let speedX;
+    if (Math.abs(distanceFromCenter) > width * 0.2) {
+        speedX = -Math.sign(distanceFromCenter) * (maxSpeedX * Math.abs(distanceFromCenter) / (width/2));
+    } else {
+        speedX = random(-1.5, 1.5);
+    }
+    
+    const size = 80;
     
     bombs.push({
         x,
         y,
         speedX,
-        speedY,
-        size
+        speedY: initialSpeedY,
+        size,
+        gravity: gravity
     });
 }
 
 function generateDurian() {
+    const targetPeakY = height * 0.3;
     const x = random(width * 0.1, width * 0.9);
     const y = height + 50;
-    const speedX = random(-2, 2);
-    const speedY = random(-16, -13); // 增加向上的速度
+    const gravity = 0.2;
+    const heightDiff = y - targetPeakY;
+    const initialSpeedY = -Math.sqrt(2 * gravity * heightDiff);
+    
+    const screenCenter = width / 2;
+    const distanceFromCenter = x - screenCenter;
+    const maxSpeedX = 3;
+    
+    let speedX;
+    if (Math.abs(distanceFromCenter) > width * 0.2) {
+        speedX = -Math.sign(distanceFromCenter) * (maxSpeedX * Math.abs(distanceFromCenter) / (width/2));
+    } else {
+        speedX = random(-1.5, 1.5);
+    }
+    
     const rotationSpeed = random(-0.05, 0.05);
-    const size = 90; // 增加榴槤大小
+    const size = 90;
     
     durians.push({
         x,
         y,
         speedX,
-        speedY,
+        speedY: initialSpeedY,
         rotation: 0,
         rotationSpeed,
-        size
+        size,
+        gravity: gravity
     });
 }
 
@@ -660,19 +644,18 @@ function generatePeach() {
     
     peachActive = true;
     peachSliceCount = 0;
-    peachTimer = 5;  // 改為5秒
+    peachTimer = 5;
     peachStartTime = millis();
     
-    // 直接在螢幕中央生成
     peachPosition = {
-        x: width / 2,  // 螢幕中央X座標
-        y: height * 0.25,  // 螢幕上方1/4處Y座標
+        x: width / 2,
+        y: height * 0.25,
         size: 120,
         rotation: 0,
         speedX: 0,
-        speedY: 0,  // 不需要初始速度
-        gravity: 0,  // 不需要重力
-        reachedTop: true,  // 直接設為已到達頂點
+        speedY: 0,
+        gravity: 0,
+        reachedTop: true,
         falling: false
     };
 }
@@ -681,21 +664,12 @@ function updateFruits() {
     for (let i = fruits.length - 1; i >= 0; i--) {
         const fruit = fruits[i];
         
-        // 使用水果自己的重力參數
         fruit.speedY += fruit.gravity;
         
-        // 更新位置
         fruit.x += fruit.speedX;
         fruit.y += fruit.speedY;
         fruit.rotation += fruit.rotationSpeed;
         
-        // 檢查是否到達最高點（speedY 從負數變成正數的瞬間）
-        if (fruit.speedY > 0 && fruit.y < height * 0.2) {  // 降低最高點檢查的閾值
-            // 確保水果開始下降
-            fruit.speedY = Math.max(fruit.speedY, 2);  // 確保有最小下降速度
-        }
-        
-        // 只要水果（不論有沒有被切）掉出畫面才移除
         if (fruit.y > height + 100) {
             fruits.splice(i, 1);
         }
@@ -706,12 +680,10 @@ function updateBombs() {
     for (let i = bombs.length - 1; i >= 0; i--) {
         const bomb = bombs[i];
         
-        // 更新位置
-        bomb.speedY += 0.2; // 重力
+        bomb.speedY += bomb.gravity;
         bomb.x += bomb.speedX;
         bomb.y += bomb.speedY;
         
-        // 如果炸彈已經離開畫面，移除它
         if (bomb.y > height + 100) {
             bombs.splice(i, 1);
         }
@@ -722,13 +694,11 @@ function updateDurians() {
     for (let i = durians.length - 1; i >= 0; i--) {
         const durian = durians[i];
         
-        // 更新位置
-        durian.speedY += 0.2; // 重力
+        durian.speedY += durian.gravity;
         durian.x += durian.speedX;
         durian.y += durian.speedY;
         durian.rotation += durian.rotationSpeed;
         
-        // 如果榴槤已經離開畫面，移除它
         if (durian.y > height + 100) {
             durians.splice(i, 1);
         }
@@ -743,29 +713,24 @@ function checkCollisions() {
     
     if (!prevSlicePos) return;
     
-    // 檢查桃子碰撞
     if (peachActive) {
         const isIntersecting = lineCircleIntersect(prevSlicePos, currentFingerPos, 
             createVector(peachPosition.x, peachPosition.y), peachPosition.size/2);
             
         if (isIntersecting && !isSlicingPeach) {
-            // 只有當之前沒有在切割狀態時才計數
             peachSliceCount++;
             isSlicingPeach = true;
             
-            // 顯示切割次數的動態效果
             sliceCountDisplay = {
                 text: peachSliceCount + '次',
                 alpha: 255,
                 y: peachPosition.y - 50
             };
         } else if (!isIntersecting) {
-            // 當手指離開桃子時，重置切割狀態
             isSlicingPeach = false;
         }
     }
     
-    // 檢查水果碰撞
     for (let i = fruits.length - 1; i >= 0; i--) {
         const fruit = fruits[i];
         if (!fruit.sliced && lineCircleIntersect(prevSlicePos, currentFingerPos, createVector(fruit.x, fruit.y), fruit.size / 2)) {
@@ -774,13 +739,11 @@ function checkCollisions() {
             fruit.speedY *= 0.5;
             fruit.rotationSpeed *= 2;
             
-            // 增加分數
             score += 10;
             
-            // 更新 Combo
             comboCount++;
             if (comboCount >= 3) {
-                score += comboCount * 2; // Combo 獎勵
+                score += comboCount * 2;
                 showCombo();
             }
             
@@ -789,17 +752,14 @@ function checkCollisions() {
         }
     }
     
-    // 檢查炸彈碰撞
     for (let i = bombs.length - 1; i >= 0; i--) {
         const bomb = bombs[i];
         if (lineCircleIntersect(prevSlicePos, currentFingerPos, createVector(bomb.x, bomb.y), bomb.size / 2)) {
-            // 觸發受傷效果
             isHurt = true;
             hurtTimer = millis();
             showHands = true;
             handShowTimer = millis();
             
-            // 炸彈觸發遊戲結束
             lives = 0;
             updateStats();
             gameOver();
@@ -807,17 +767,14 @@ function checkCollisions() {
         }
     }
     
-    // 檢查榴槤碰撞
     for (let i = durians.length - 1; i >= 0; i--) {
         const durian = durians[i];
         if (lineCircleIntersect(prevSlicePos, currentFingerPos, createVector(durian.x, durian.y), durian.size / 2)) {
-            // 觸發受傷效果
             isHurt = true;
             hurtTimer = millis();
             showHands = true;
             handShowTimer = millis();
             
-            // 榴槤減少生命值
             lives--;
             durians.splice(i, 1);
             updateStats();
@@ -831,13 +788,11 @@ function checkCollisions() {
 }
 
 function drawObjects() {
-    // 繪製桃子（如果處於活動狀態）
     if (peachActive) {
         push();
         translate(peachPosition.x, peachPosition.y);
         rotate(peachPosition.rotation);
         
-        // 添加發光效果
         drawingContext.shadowBlur = 20;
         drawingContext.shadowColor = 'rgba(255, 192, 203, 0.7)';
         
@@ -849,20 +804,17 @@ function drawObjects() {
             ellipse(0, 0, peachPosition.size, peachPosition.size);
         }
         
-        // 顯示剩餘時間
         textAlign(CENTER);
         textSize(24);
         fill(255);
         text(Math.ceil(peachTimer) + '秒', 0, -peachPosition.size/2 - 20);
         
-        // 顯示當前切割次數
         textSize(32);
         fill(255, 215, 0);
         text(peachSliceCount + '次', 0, peachPosition.size/2 + 30);
         
         pop();
         
-        // 繪製切割次數的動態效果
         if (sliceCountDisplay.alpha > 0) {
             push();
             textAlign(CENTER);
@@ -873,14 +825,12 @@ function drawObjects() {
         }
     }
     
-    // 繪製所有水果
     for (const fruit of fruits) {
         push();
         translate(fruit.x, fruit.y);
         rotate(fruit.rotation);
         
         if (fruit.sliced) {
-            // 使用切開後的水果圖片
             if (fruitSlicedImages[fruit.type]) {
                 drawingContext.shadowBlur = 20;
                 drawingContext.shadowColor = 'rgba(255, 255, 255, 0.5)';
@@ -893,9 +843,7 @@ function drawObjects() {
                 ellipse(0, 0, fruit.size, fruit.size);
             }
         } else {
-            // 使用未切開的水果圖片
             if (fruitImages[fruit.type]) {
-                // 添加發光效果
                 drawingContext.shadowBlur = 20;
                 drawingContext.shadowColor = 'rgba(255, 255, 255, 0.5)';
                 imageMode(CENTER);
@@ -910,11 +858,9 @@ function drawObjects() {
         pop();
     }
     
-    // 繪製炸彈
     for (const bomb of bombs) {
         push();
         if (bombImage) {
-            // 添加發光效果
             drawingContext.shadowBlur = 15;
             drawingContext.shadowColor = 'rgba(255, 0, 0, 0.5)';
             image(bombImage, bomb.x - bomb.size/2, bomb.y - bomb.size/2, bomb.size, bomb.size);
@@ -926,13 +872,11 @@ function drawObjects() {
         pop();
     }
     
-    // 繪製榴槤
     for (const durian of durians) {
         push();
         translate(durian.x, durian.y);
         rotate(durian.rotation);
         if (durianImage) {
-            // 添加發光效果
             drawingContext.shadowBlur = 15;
             drawingContext.shadowColor = 'rgba(255, 255, 0, 0.5)';
             image(durianImage, -durian.size/2, -durian.size/2, durian.size, durian.size);
@@ -946,21 +890,16 @@ function drawObjects() {
 }
 
 function drawHandTracking() {
-    // 繪製手指位置
     if (fingerPositions.length > 0) {
-        // 繪製手指指示器
         push();
         fill(255, 255, 255, 200);
         noStroke();
-        // 繪製外圈
         ellipse(fingerPositions[0].x, fingerPositions[0].y, 40, 40);
-        // 繪製內圈
         fill(255, 100, 100, 200);
         ellipse(fingerPositions[0].x, fingerPositions[0].y, 20, 20);
         pop();
     }
 
-    // 繪製斬擊軌跡（更流暢的軌跡）
     if (sliceTrail.length > 1) {
         push();
         noFill();
@@ -970,7 +909,6 @@ function drawHandTracking() {
             const alpha = map(slice1.life, 0, TRAIL_LENGTH, 0, 255);
             const thickness = map(slice1.life, 0, TRAIL_LENGTH, 2, 8);
             
-            // 使用漸變色
             const hue = map(i, 0, sliceTrail.length, 0, 60);
             stroke(hue, 100, 100, alpha);
             strokeWeight(thickness);
@@ -980,13 +918,11 @@ function drawHandTracking() {
     }
 }
 
-// 輔助函數：檢查線段與圓形是否相交
 function lineCircleIntersect(lineStart, lineEnd, circleCenter, radius) {
     const d = dist(lineStart.x, lineStart.y, lineEnd.x, lineEnd.y);
     if (d === 0) return false;
     
-    // 增加碰撞判定範圍
-    const expandedRadius = radius * 1.2; // 增加 20% 的判定範圍
+    const expandedRadius = radius * 1.2;
     
     const dot = (((circleCenter.x - lineStart.x) * (lineEnd.x - lineStart.x)) + 
                  ((circleCenter.y - lineStart.y) * (lineEnd.y - lineStart.y))) / (d * d);
@@ -994,9 +930,7 @@ function lineCircleIntersect(lineStart, lineEnd, circleCenter, radius) {
     const closestX = lineStart.x + (dot * (lineEnd.x - lineStart.x));
     const closestY = lineStart.y + (dot * (lineEnd.y - lineStart.y));
     
-    // 放寬判定條件，允許線段延長線上的點
     if (dot < -0.1 || dot > 1.1) {
-        // 檢查線段端點是否在圓內
         const distToStart = dist(lineStart.x, lineStart.y, circleCenter.x, circleCenter.y);
         const distToEnd = dist(lineEnd.x, lineEnd.y, circleCenter.x, circleCenter.y);
         return distToStart <= expandedRadius || distToEnd <= expandedRadius;
@@ -1006,45 +940,41 @@ function lineCircleIntersect(lineStart, lineEnd, circleCenter, radius) {
     return distance <= expandedRadius;
 }
 
-// 當視窗大小改變時調整畫布大小
 function windowResized() {
     resizeCanvas(windowWidth, windowHeight);
     console.log('視窗調整後的畫布大小:', width, height);
 }
 
-// 添加鍵盤事件處理函數
 function handleKeyPress(event) {
-    console.log('按下按鍵:', event.key);  // 除錯用
+    console.log('按下按鍵:', event.key);
     if (event.key === 'Escape') {
-        console.log('遊戲狀態:', gameState); // 除錯用
+        console.log('遊戲狀態:', gameState);
         if (gameState === 'playing') {
-            console.log('觸發暫停');  // 除錯用
+            console.log('觸發暫停');
             togglePause();
         }
     }
 }
 
-// 添加暫停/繼續功能
 function togglePause() {
     isPaused = !isPaused;
     const pauseMenu = document.getElementById('pauseMenu');
-    console.log('切換暫停狀態:', isPaused);  // 除錯用
+    console.log('切換暫停狀態:', isPaused);
     
     if (isPaused) {
-        console.log('顯示暫停選單');  // 除錯用
+        console.log('顯示暫停選單');
         pauseMenu.classList.remove('hidden');
-        noLoop();  // 停止遊戲循環
+        noLoop();
     } else {
-        console.log('隱藏暫停選單');  // 除錯用
+        console.log('隱藏暫停選單');
         pauseMenu.classList.add('hidden');
-        loop();    // 恢復遊戲循環
+        loop();
     }
 }
 
 window.addEventListener('DOMContentLoaded', () => {
-    // 添加鍵盤事件監聽
     window.addEventListener('keydown', handleKeyPress);
-    console.log('已添加鍵盤事件監聽');  // 除錯用
+    console.log('已添加鍵盤事件監聽');
 
     const ruleBtn = document.getElementById('ruleButton');
     const ruleModal = document.getElementById('ruleModal');
@@ -1054,23 +984,20 @@ window.addEventListener('DOMContentLoaded', () => {
         closeRule.onclick = () => ruleModal.classList.add('hidden');
     }
 
-    // 開始遊戲按鈕
     const startBtn = document.getElementById('startButton');
     if(startBtn) {
         startBtn.onclick = () => {
             document.getElementById('startScreen').classList.add('hidden');
             document.getElementById('loadingScreen').classList.remove('hidden');
-            // 初始化手部追踪，增加偵測靈敏度
             handpose = ml5.handpose(video, {
                 flipHorizontal: true,
                 maxHands: 1,
-                detectionConfidence: 0.5,  // 降低偵測信心度閾值
+                detectionConfidence: 0.5,
                 maxNumHands: 1
             }, modelReady);
         };
     }
 
-    // 更新關卡按鈕狀態
     function updateLevelButtons() {
         for (let i = 1; i <= 4; i++) {
             const btn = document.getElementById('levelBtn' + i);
@@ -1083,17 +1010,15 @@ window.addEventListener('DOMContentLoaded', () => {
                     case 4: levelName = '終極挑戰'; break;
                 }
                 
-                // 顯示關卡名稱和最高分數
                 const highScore = levelScores[i - 1];
                 const scoreText = highScore > 0 ? ` (最高分：${highScore})` : '';
                 
-                // 修改解鎖邏輯：只有當前關卡和已解鎖的關卡可以點選
                 if (i === 1 || (i <= currentLevel && levelScores[i - 2] >= LEVEL_REQUIREMENTS[i - 2])) {
                     btn.innerHTML = `第${i}關：${levelName}${scoreText}`;
                     btn.classList.remove('locked');
                     btn.onclick = () => {
                         level = i;
-                        score = 0; // 重置分數
+                        score = 0;
                         document.getElementById('levelSelect').classList.add('hidden');
                         startGame();
                     };
@@ -1106,26 +1031,22 @@ window.addEventListener('DOMContentLoaded', () => {
         }
     }
     
-    // 關卡選擇按鈕
     updateLevelButtons();
 
-    // 重新開始按鈕
     const restartBtn = document.getElementById('restartButton');
     if(restartBtn) {
         restartBtn.onclick = restartGame;
     }
 
-    // 返回選關按鈕
     const backToLevelBtn = document.getElementById('backToLevelSelect');
     if(backToLevelBtn) {
         backToLevelBtn.onclick = () => {
             document.getElementById('gameOverScreen').classList.add('hidden');
             document.getElementById('levelSelect').classList.remove('hidden');
-            updateLevelButtons(); // 更新按鈕狀態
+            updateLevelButtons();
         };
     }
 
-    // 退出選關按鈕
     const exitLevelBtn = document.getElementById('exitLevelSelect');
     if(exitLevelBtn) {
         exitLevelBtn.onclick = () => {
@@ -1134,14 +1055,12 @@ window.addEventListener('DOMContentLoaded', () => {
         };
     }
 
-    // 下一關按鈕
     const nextLevelBtn = document.getElementById('nextLevelButton');
     if(nextLevelBtn) {
         nextLevelBtn.onclick = () => {
             currentLevel++;
             document.getElementById('gameOverScreen').classList.add('hidden');
             document.getElementById('loadingScreen').classList.remove('hidden');
-            // 重新初始化手部偵測
             handpose = ml5.handpose(video, {
                 flipHorizontal: true,
                 maxHands: 1,
@@ -1155,14 +1074,13 @@ window.addEventListener('DOMContentLoaded', () => {
         };
     }
 
-    // 暫停選單按鈕事件
     const resumeBtn = document.getElementById('resumeButton');
     const restartFromPauseBtn = document.getElementById('restartFromPause');
     const exitToMenuBtn = document.getElementById('exitToMenu');
 
     if (resumeBtn) {
         resumeBtn.onclick = () => {
-            togglePause();  // 繼續遊戲
+            togglePause();
         };
     }
 
@@ -1181,11 +1099,10 @@ window.addEventListener('DOMContentLoaded', () => {
             loop();
             document.getElementById('pauseMenu').classList.add('hidden');
             document.getElementById('levelSelect').classList.remove('hidden');
-            document.getElementById('gameStats').classList.add('hidden'); // 隱藏遊戲狀態
-            document.getElementById('comboIndicator').classList.add('hidden'); // 隱藏 combo 指示器
-            document.getElementById('levelIndicator').classList.add('hidden'); // 隱藏關卡指示器
+            document.getElementById('gameStats').classList.add('hidden');
+            document.getElementById('comboIndicator').classList.add('hidden');
+            document.getElementById('levelIndicator').classList.add('hidden');
             gameState = 'start';
-            // 重置遊戲相關變數
             score = 0;
             lives = 3;
             comboCount = 0;
@@ -1194,21 +1111,15 @@ window.addEventListener('DOMContentLoaded', () => {
             durians = [];
             bossFruit = null;
             bossActive = false;
-            level = 1;  // 重置當前遊玩關卡
-            updateLevelButtons(); // 更新關卡按鈕狀態
+            level = 1;
+            updateLevelButtons();
         };
     }
 });
 
-// 計算桃子分數的函數
 function calculatePeachBonus(sliceCount) {
-    // 基礎分數：每切一次得5分
     let baseScore = sliceCount * 5;
     
-    // 額外獎勵：
-    // 10次以上：額外獎勵50分
-    // 20次以上：額外獎勵100分
-    // 30次以上：額外獎勵200分
     if (sliceCount >= 30) {
         baseScore += 200;
     } else if (sliceCount >= 20) {
@@ -1222,10 +1133,8 @@ function calculatePeachBonus(sliceCount) {
 
 function drawHurtEffect() {
     if (isHurt) {
-        // 計算閃爍的透明度
         const alpha = map(millis() - hurtTimer, 0, hurtDuration, 255, 0);
         if (alpha > 0) {
-            // 繪製紅色邊框
             push();
             stroke(255, 0, 0, alpha);
             strokeWeight(20);
@@ -1244,11 +1153,9 @@ function drawHands() {
         if (alpha > 0) {
             push();
             tint(255, alpha);
-            // 繪製左手
             if (leftHandImage) {
                 image(leftHandImage, width * 0.1, height * 0.3, 200, 200);
             }
-            // 繪製右手
             if (rightHandImage) {
                 image(rightHandImage, width * 0.7, height * 0.3, 200, 200);
             }
