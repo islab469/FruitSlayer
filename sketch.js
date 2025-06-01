@@ -152,6 +152,7 @@ function preload() {
 function setup() {
     // 創建畫布
     let canvas = createCanvas(windowWidth, windowHeight);
+    let ctx = canvas.elt.getContext('2d', { willReadFrequently: true });    
     canvas.parent('gameContainer');
     canvas.style('background', 'transparent');
     
@@ -875,23 +876,23 @@ window.addEventListener('DOMContentLoaded', () => {
 
     // 更新關卡按鈕狀態
     function updateLevelButtons() {
-        for(let i=1; i<=4; i++) {
-            const btn = document.getElementById('levelBtn'+i);
-            if(btn) {
-                if(i > currentLevel) {
+        for (let i = 1; i <= 4; i++) {
+            const btn = document.getElementById('levelBtn' + i);
+            if (btn) {
+                let levelName = '';
+                switch (i) {
+                    case 1: levelName = '新手教學'; break;
+                    case 2: levelName = '榴槤挑戰'; break;
+                    case 3: levelName = '炸彈危機'; break;
+                    case 4: levelName = '終極挑戰'; break;
+                }
+                if (i > currentLevel) {
+                    btn.innerHTML = `🔒第${i}關：${levelName}`;
                     btn.classList.add('locked');
-                    btn.onclick = null;
-                    btn.textContent = `第${i}關：未解鎖`;  // 只顯示未解鎖文字
+                    btn.onclick = null; 
                 } else {
-                    btn.classList.remove('locked');
-                    let levelName = '';
-                    switch(i) {
-                        case 1: levelName = '新手教學'; break;
-                        case 2: levelName = '榴槤挑戰'; break;
-                        case 3: levelName = '炸彈危機'; break;
-                        case 4: levelName = '終極挑戰'; break;
-                    }
                     btn.textContent = `第${i}關：${levelName}`;
+                    btn.classList.remove('locked');
                     btn.onclick = () => {
                         level = i;
                         document.getElementById('levelSelect').classList.add('hidden');
@@ -901,6 +902,8 @@ window.addEventListener('DOMContentLoaded', () => {
             }
         }
     }
+    
+    
 
     // 關卡選擇按鈕
     updateLevelButtons();
