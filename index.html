@@ -69,26 +69,28 @@
                     <p>在這個充滿趣味的水果切切樂遊戲中，你將成為一位水果忍者大師！使用你的雙手在攝像頭前揮舞，切開飛躍的水果，獲得高分！</p>
 
                     <h2>🎯 遊戲目標</h2>
-                    <p>每關需要獲得100分才能解鎖下一關。透過精準的切割和連擊combo來獲得更多分數！</p>
+                    <p>成為最厲害的水果忍者！第一關新手教學只需獲得1分即可通過，其他關卡需要獲得100分才能解鎖下一關。透過精準的切割和連擊combo來獲得更多分數！</p>
 
                     <h2>🔥 特色玩法</h2>
                     <ul>
-                        <li><b>連擊獎勵：</b>連續切中3個以上水果可觸發Combo，每次連擊都會獲得額外加分！</li>
-                        <li><b>神秘桃子：</b>遊戲時間結束時會出現特殊的桃子，在5秒內瘋狂切割以獲得豐厚的額外分數！
+                        <li><b>水果切割：</b>成功切中一個水果可獲得10分，讓切割更有目標！</li>
+                        <li><b>連擊獎勵：</b>展現你的忍術！連續切中3個以上水果可觸發Combo，每次連擊都會獲得額外加分！</li>
+                        <li><b>神秘桃子：</b>遊戲時間結束時會出現特殊的桃子，這是你展現極限切割技巧的時刻！
                             <ul>
-                                <li>切割10次以上：額外獎勵50分</li>
-                                <li>切割20次以上：額外獎勵100分</li>
-                                <li>切割30次以上：額外獎勵200分</li>
+                                <li>每次成功切到桃子：獲得5分</li>
+                                <li>達到10次切割：額外獎勵50分</li>
+                                <li>達到20次切割：額外獎勵100分</li>
+                                <li>達到30次切割：額外獎勵200分</li>
                             </ul>
                         </li>
                     </ul>
 
                     <h2>🎚️ 關卡介紹</h2>
                     <ul>
-                        <li><b>第一關 - 新手教學：</b>純粹的水果切割樂趣，熟悉基本操作。</li>
-                        <li><b>第二關 - 榴槤挑戰：</b>小心危險的榴槤！切到會扣除生命值。</li>
-                        <li><b>第三關 - 炸彈危機：</b>除了榴槤外還要躲避致命的炸彈，碰到炸彈遊戲立即結束！</li>
-                        <li><b>第四關 - 終極挑戰：</b>更快的節奏、更多的障礙，考驗你的極限！</li>
+                        <li><b>第一關 - 新手教學：</b>初次成為水果忍者？在這裡熟悉基本操作，只需獲得1分就能通過！</li>
+                        <li><b>第二關 - 榴槤挑戰：</b>小心危險的榴槤！這個帶刺的惡魔會讓你失去一條寶貴的生命。</li>
+                        <li><b>第三關 - 炸彈危機：</b>除了要躲避榴槤，還要小心致命的炸彈！碰到就會立即結束遊戲！</li>
+                        <li><b>第四關 - 終極挑戰：</b>更快的節奏、更多的障礙，展現你的極限實力！</li>
                     </ul>
 
                     <h2>⚔️ 操作技巧</h2>
@@ -96,15 +98,18 @@
                         <li>保持手部在攝像頭視野內，動作要大且清晰</li>
                         <li>使用流暢的切割動作可以提高命中率</li>
                         <li>注意切割軌跡的視覺回饋，幫助你掌握切割位置</li>
-                        <li>在桃子模式中，小幅度快速切割效果最好</li>
+                        <li>在桃子模式中，使用小幅度快速切割效果最好</li>
+                        <li>需要休息？按ESC鍵即可暫停遊戲</li>
                     </ul>
 
                     <h2>⚡ 遊戲提示</h2>
                     <ul>
-                        <li>每局遊戲時間為20秒，把握時間獲取高分</li>
-                        <li>善用Combo系統可以快速累積分數</li>
-                        <li>遇到榴槤時可以暫時避開，等待更好的時機</li>
-                        <li>注意生命值，保持警惕避開危險物品</li>
+                        <li>每局遊戲時間為20秒，把握每一刻獲取高分</li>
+                        <li>你擁有3條珍貴的生命，被榴槤擊中會失去一條</li>
+                        <li>炸彈是致命的！碰到就會立即結束遊戲</li>
+                        <li>善用Combo系統，連擊是累積高分的關鍵</li>
+                        <li>注意切中物品時的特效，這是你成功的標誌</li>
+                        <li>當你受傷時，紅色閃爍和手部提示會警告你要小心</li>
                     </ul>
                 </div>
             </div>
@@ -124,8 +129,10 @@
         
         <div class="game-stats hidden" id="gameStats">
             <div>分數: <span id="score">0</span></div>
-            <div>生命: <span id="lives">3</span></div>
         </div>
+        
+        <div class="hearts-container hidden" id="heartsContainer"></div>
+        <div class="timer-container hidden" id="timerContainer">剩餘時間: <span id="gameTimer">20</span> 秒</div>
         
         <div class="level-indicator hidden" id="levelIndicator">
             <div>等級: <span id="level">1</span></div>
@@ -134,6 +141,11 @@
         <div class="combo-indicator hidden" id="comboIndicator">
             COMBO x<span id="comboCount">0</span>!
         </div>
+
+        <div class="peach-mode-overlay hidden" id="peachOverlay"></div>
+        <div class="peach-timer hidden" id="peachTimer"></div>
+        <div class="peach-counter hidden" id="peachCounter"></div>
+        <div class="peach-bonus hidden" id="peachBonus"></div>
         
         <div class="pause-menu hidden" id="pauseMenu">
             <div class="pause-content">
@@ -148,9 +160,19 @@
             <h1>遊戲結束</h1>
             <p>太棒了！<br>你的最終分數: <span id="finalScore"></p>
             <div class="game-over-buttons">
-            <button id="restartButton">再來一次</button>
+                <button id="restartButton">再來一次</button>
                 <button id="nextLevelButton" class="hidden">下一關</button>
                 <button id="backToLevelSelect">回到選關</button>
+            </div>
+        </div>
+
+        <div class="death-screen" id="deathScreen">
+            <div class="skull">💀</div>
+            <div class="message">你死了！</div>
+            <div class="sub-message">看來你需要更多練習...</div>
+            <div class="buttons">
+                <button id="retryButton">重新挑戰</button>
+                <button id="backToMenuButton">返回選單</button>
             </div>
         </div>
     </div>
