@@ -187,11 +187,11 @@ html, body {
     z-index: 1;
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 2vw;
-    margin: 2vw 0;
+    gap: 3vw 4vw;
+    margin: 4vw 0;
     justify-items: center;
-    width: 80%;
-    max-width: 1200px;
+    width: 90%;
+    max-width: 1400px;
 }
 
 /* 結算畫面特別樣式 */
@@ -382,26 +382,20 @@ button:active {
 }
 
 /* 關卡選擇按鈕樣式 */
-.level-buttons {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 2vw 2vw;
-    margin: 2vw 0;
-    justify-items: center;
-}
-
 .level-buttons button {
-    width: 90%;
-    max-width: 550px;
-    background: linear-gradient(45deg, #4CAF50, #8BC34A);
+    width: 100%;
+    padding: 2vw 3vw;
+    font-size: 1.8vw;
+    background: linear-gradient(135deg, #4CAF50, #45a049);
     color: white;
-    font-size: 2vw;
-    padding: 2vw 6vw;
-    border-radius: 10px;
+    border: none;
+    border-radius: 15px;
+    cursor: pointer;
     transition: all 0.3s ease;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
     position: relative;
-    margin: 0;
-    white-space: nowrap;
+    overflow: hidden;
 }
 
 .level-buttons button:hover {
@@ -417,16 +411,9 @@ button:active {
 
 /* 無法遊玩的關卡按鈕樣式 */
 .level-buttons button.locked {
-    background: linear-gradient(45deg, #2E7D32, #558B2F);
-    opacity: 0.6;
+    background: linear-gradient(135deg, #808080, #666666);
     cursor: not-allowed;
-    filter: grayscale(50%);
-}
-
-.level-buttons button.locked:hover {
-    transform: none;
-    box-shadow: none;
-    background: linear-gradient(45deg, #2E7D32, #558B2F);
+    opacity: 0.8;
 }
 
 /* 鎖頭表情符號樣式 */
@@ -439,41 +426,26 @@ button:active {
 @media (max-width: 900px) {
     .level-buttons {
         grid-template-columns: 1fr;
-    }
-    .level-buttons button {
+        gap: 2vw;
         width: 95%;
-        max-width: 600px;
+    }
+    
+    .level-buttons button {
         font-size: 3vw;
+        padding: 3vw 4vw;
+    }
+    
+    #levelSelect h1 {
+        font-size: 5vw;
     }
 }
 
 .exit-btn {
     position: absolute;
-    bottom: 100px;
-    left: 650px;
-    background: rgba(0, 0, 0, 0.5);
-    color: #FFD700;
-    font-size: 1.2rem;
-    padding: 15px 50px;
-    border-radius: 10px;
-    border: 2px solid rgba(255, 215, 0, 0.3);
-    cursor: pointer;
-    z-index: 20;
-    transition: all 0.3s ease;
-    min-width: unset;
-    margin: 0;
-    transform: scale(1);
-}
-
-.exit-btn:hover {
-    background: rgba(255, 51, 51, 0.7);
-    color: white;
-    transform: scale(1.1);
-    box-shadow: 0 5px 15px rgba(255, 51, 51, 0.4);
-}
-
-.exit-btn:active {
-    transform: scale(0.95);
+    bottom: 60px;
+    left: 700px;
+    padding: 1vw 2vw;
+    font-size: 1.2vw;
 }
 
 /* 載入畫面樣式 */
@@ -609,4 +581,15 @@ button:active {
 
 .pause-content #exitToMenu:hover {
     box-shadow: 0 5px 15px rgba(244, 67, 54, 0.4);
+}
+
+/* 選關標題樣式 */
+#levelSelect h1 {
+    font-size: 3.5vw;
+    margin-bottom: 2vw;
+    background: linear-gradient(45deg, #FFD700, #FFA500);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    text-shadow: 0 2px 15px rgba(255, 215, 0, 0.3);
 }

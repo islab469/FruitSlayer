@@ -4,9 +4,10 @@ let score = 0;
 let lives = 3;
 let level = 1;  // 玩家選擇的關卡
 let currentLevel = 1; // 當前進度等級（用於解鎖下一關）
+let levelScores = [0, 0, 0, 0]; // 儲存每個關卡的最高分數
 let comboCount = 0;
 let lastSliceTime = 0;
-const LEVEL_REQUIREMENTS = [10, 10, 10, 10]; // 每關所需分數，調整為更合理的數值
+const LEVEL_REQUIREMENTS = [100, 100, 100, 100]; // 每關所需分數，統一設為100分
 
 // 桃子特殊機制相關變數
 let peachActive = false;
@@ -16,6 +17,7 @@ let peachStartTime = 0;
 let peachImage;
 let peachPosition = { x: 0, y: 0, size: 120 };
 let sliceCountDisplay = { text: '', alpha: 0, y: 0 };
+let isSlicingPeach = false;  // 新增：追蹤是否正在切割桃子
 
 // 設為全域變數
 window.FRUIT_TYPES = ['apple', 'banana', 'watermelon', 'strawberry', 'tomato', 'guava', 'pitaya', 'lemon'];
@@ -66,6 +68,16 @@ let durianSound;
 let gameTimer = 20; // 秒
 let gameStartTime = 0;
 let isPaused = false;  // 確保只有一個 isPaused 變數
+
+// 受傷效果相關變數
+let isHurt = false;
+let hurtTimer = 0;
+let hurtDuration = 500; // 閃爍持續時間（毫秒）
+let leftHandImage;
+let rightHandImage;
+let handShowTimer = 0;
+let handShowDuration = 1000; // 手顯示持續時間（毫秒）
+let showHands = false;
 
 // 預加載圖片
 function preload() {
@@ -159,6 +171,16 @@ function preload() {
             () => console.log('桃子圖片載入成功'),
             () => console.error('桃子圖片載入失敗')
         );
+
+        // 載入手的圖片
+        leftHandImage = loadImage('./Assets/LeftHand.png',
+            () => console.log('左手圖片載入成功'),
+            () => console.error('左手圖片載入失敗')
+        );
+        rightHandImage = loadImage('./Assets/RightHand.png?' + new Date().getTime(),
+            () => console.log('右手圖片載入成功'),
+            () => console.error('右手圖片載入失敗')
+        );
     } catch (error) {
         console.error('圖片載入過程中發生錯誤:', error);
     }
@@ -228,20 +250,30 @@ function gameOver() {
     document.getElementById('gameOverScreen').classList.remove('hidden');
     document.getElementById('finalScore').textContent = score;
 
-    // 檢查是否達到下一關的條件，如果達到就自動解鎖
-    if (currentLevel < 4 && score >= LEVEL_REQUIREMENTS[currentLevel - 1]) {
-        currentLevel++; // 自動增加關卡等級
+    // 更新當前關卡的最高分數
+    if (score > levelScores[level - 1]) {
+        levelScores[level - 1] = score;
+    }
+
+    // 檢查是否達到當前關卡的要求分數
+    if (score >= LEVEL_REQUIREMENTS[level - 1]) {
+        // 只有當前關卡是最高解鎖關卡時才解鎖下一關
+        if (level === currentLevel && currentLevel < 4) {
+            currentLevel = level + 1; // 只解鎖下一關
+        }
         const nextLevelButton = document.getElementById('nextLevelButton');
         if (nextLevelButton) {
-            nextLevelButton.textContent = `進入第 ${currentLevel} 關`;
-            nextLevelButton.classList.remove('hidden');
-            console.log('解鎖下一關，當前分數:', score, '所需分數:', LEVEL_REQUIREMENTS[currentLevel - 2]);
+            if (level < 4 && score >= LEVEL_REQUIREMENTS[level - 1]) {
+                nextLevelButton.textContent = `進入第 ${level + 1} 關`;
+                nextLevelButton.classList.remove('hidden');
+            } else {
+                nextLevelButton.classList.add('hidden');
+            }
         }
     } else {
         const nextLevelButton = document.getElementById('nextLevelButton');
         if (nextLevelButton) {
             nextLevelButton.classList.add('hidden');
-            console.log('未達到解鎖條件，當前分數:', score, '所需分數:', LEVEL_REQUIREMENTS[currentLevel - 1]);
         }
     }
 }
@@ -249,9 +281,9 @@ function gameOver() {
 function updateStats() {
     const scoreSpan = document.getElementById('score');
     const livesSpan = document.getElementById('lives');
-    // 顯示當前分數和下一關所需分數
-    const nextLevelScore = currentLevel < 4 ? LEVEL_REQUIREMENTS[currentLevel - 1] : '完成';
-    scoreSpan.textContent = `${score} / ${nextLevelScore}`;
+    // 顯示當前分數和當前關卡所需分數
+    const currentLevelRequirement = LEVEL_REQUIREMENTS[level - 1];
+    scoreSpan.textContent = `${score} / ${currentLevelRequirement}`;
     livesSpan.textContent = lives;
 }
 
@@ -305,8 +337,8 @@ function draw() {
             let timeLeft = Math.max(0, 20 - Math.floor(elapsed));
             gameTimer = timeLeft;
             
-            // 在剩餘10秒時生成桃子（如果還沒生成的話）
-            if (timeLeft === 10 && !peachActive) {
+            // 在遊戲時間歸零時生成桃子
+            if (timeLeft === 0 && !peachActive) {
                 generatePeach();
             }
         }
@@ -317,16 +349,19 @@ function draw() {
         textSize(32);
         text('剩餘時間: ' + gameTimer + ' 秒', width - 30, 30);
         
-        // 時間到自動結束
+        // 時間到自動結束（改為只在非桃子模式時檢查）
         if (gameTimer <= 0 && !peachActive) {
-            gameOver();
-            return;
+            generatePeach();  // 生成桃子
         }
         
         updateHandTracking();
         updateGameLogic();
         drawObjects();
         drawHandTracking();
+        
+        // 繪製受傷效果
+        drawHurtEffect();
+        drawHands();
         
         if (hands.length === 0) {
             fill(255, 255, 0, 220);
@@ -456,49 +491,27 @@ function updateGameLogic() {
     
     // 更新桃子狀態
     if (peachActive) {
-        // 只在桃子時間內更新桃子的計時器
+        // 更新計時器
         const elapsedPeachTime = (currentTime - peachStartTime) / 1000;
-        peachTimer = Math.max(0, 15 - Math.floor(elapsedPeachTime));
-        
-        // 更新桃子位置
-        if (!peachPosition.reachedTop) {
-            // 更新速度和位置
-            peachPosition.speedY += peachPosition.gravity;
-            peachPosition.x += peachPosition.speedX;
-            peachPosition.y += peachPosition.speedY;
+        peachTimer = Math.max(0, 5 - elapsedPeachTime);
+
+        // 時間到直接結算
+        if (peachTimer <= 0) {
+            // 計算額外分數
+            const bonusScore = calculatePeachBonus(peachSliceCount);
+            score += bonusScore;
             
-            // 檢查是否到達頂點位置（在畫面上方約1/4處）
-            if (peachPosition.y <= height * 0.25) {
-                peachPosition.y = height * 0.25;
-                peachPosition.speedY = 0;
-                peachPosition.speedX = 0;
-                peachPosition.gravity = 0;
-                peachPosition.reachedTop = true;
-                // 重設計時器，確保從停止時開始計時
-                peachStartTime = currentTime;
-            }
-        } else if (peachTimer <= 0) {
-            // 只有在計時結束後才開始下落
-            peachPosition.gravity = 0.8;  // 恢復重力
-            peachPosition.speedY += peachPosition.gravity;
-            peachPosition.y += peachPosition.speedY;
+            // 顯示最終得分
+            sliceCountDisplay = {
+                text: `+${bonusScore}分！`,
+                alpha: 255,
+                y: height / 2
+            };
             
-            // 當桃子完全離開畫面時才結束
-            if (peachPosition.y > height + 100) {
-                // 計算額外分數
-                const bonusScore = calculatePeachBonus(peachSliceCount);
-                score += bonusScore;
-                
-                // 顯示最終得分
-                sliceCountDisplay = {
-                    text: `+${bonusScore}分！`,
-                    alpha: 255,
-                    y: height / 2
-                };
-                
-                peachActive = false;
-                updateStats();
-            }
+            peachActive = false;
+            updateStats();
+            gameOver();  // 直接結束遊戲
+            return;
         }
     }
     
@@ -647,19 +660,20 @@ function generatePeach() {
     
     peachActive = true;
     peachSliceCount = 0;
-    peachTimer = 15;
+    peachTimer = 5;  // 改為5秒
     peachStartTime = millis();
     
-    // 從畫面下方生成，像普通水果一樣
+    // 直接在螢幕中央生成
     peachPosition = {
-        x: width / 2,  // 固定在畫面中央
-        y: height + 50,  // 從畫面下方開始
+        x: width / 2,  // 螢幕中央X座標
+        y: height * 0.25,  // 螢幕上方1/4處Y座標
         size: 120,
         rotation: 0,
-        speedX: 0,  // 移除水平速度
-        speedY: -25,  // 固定的向上初始速度
-        gravity: 0.8,  // 重力加速度
-        reachedTop: false  // 是否到達頂點
+        speedX: 0,
+        speedY: 0,  // 不需要初始速度
+        gravity: 0,  // 不需要重力
+        reachedTop: true,  // 直接設為已到達頂點
+        falling: false
     };
 }
 
@@ -731,9 +745,13 @@ function checkCollisions() {
     
     // 檢查桃子碰撞
     if (peachActive) {
-        if (lineCircleIntersect(prevSlicePos, currentFingerPos, 
-            createVector(peachPosition.x, peachPosition.y), peachPosition.size/2)) {
+        const isIntersecting = lineCircleIntersect(prevSlicePos, currentFingerPos, 
+            createVector(peachPosition.x, peachPosition.y), peachPosition.size/2);
+            
+        if (isIntersecting && !isSlicingPeach) {
+            // 只有當之前沒有在切割狀態時才計數
             peachSliceCount++;
+            isSlicingPeach = true;
             
             // 顯示切割次數的動態效果
             sliceCountDisplay = {
@@ -741,13 +759,9 @@ function checkCollisions() {
                 alpha: 255,
                 y: peachPosition.y - 50
             };
-            
-            // 每次切到時稍微改變位置
-            peachPosition.x += random(-50, 50);
-            peachPosition.x = constrain(peachPosition.x, peachPosition.size/2, width - peachPosition.size/2);
-            peachPosition.y += random(-50, 50);
-            peachPosition.y = constrain(peachPosition.y, peachPosition.size/2, height - peachPosition.size/2);
-            peachPosition.rotation += random(-PI/4, PI/4);
+        } else if (!isIntersecting) {
+            // 當手指離開桃子時，重置切割狀態
+            isSlicingPeach = false;
         }
     }
     
@@ -779,6 +793,12 @@ function checkCollisions() {
     for (let i = bombs.length - 1; i >= 0; i--) {
         const bomb = bombs[i];
         if (lineCircleIntersect(prevSlicePos, currentFingerPos, createVector(bomb.x, bomb.y), bomb.size / 2)) {
+            // 觸發受傷效果
+            isHurt = true;
+            hurtTimer = millis();
+            showHands = true;
+            handShowTimer = millis();
+            
             // 炸彈觸發遊戲結束
             lives = 0;
             updateStats();
@@ -791,6 +811,12 @@ function checkCollisions() {
     for (let i = durians.length - 1; i >= 0; i--) {
         const durian = durians[i];
         if (lineCircleIntersect(prevSlicePos, currentFingerPos, createVector(durian.x, durian.y), durian.size / 2)) {
+            // 觸發受傷效果
+            isHurt = true;
+            hurtTimer = millis();
+            showHands = true;
+            handShowTimer = millis();
+            
             // 榴槤減少生命值
             lives--;
             durians.splice(i, 1);
@@ -827,7 +853,7 @@ function drawObjects() {
         textAlign(CENTER);
         textSize(24);
         fill(255);
-        text(peachTimer + '秒', 0, -peachPosition.size/2 - 20);
+        text(Math.ceil(peachTimer) + '秒', 0, -peachPosition.size/2 - 20);
         
         // 顯示當前切割次數
         textSize(32);
@@ -1056,25 +1082,30 @@ window.addEventListener('DOMContentLoaded', () => {
                     case 3: levelName = '炸彈危機'; break;
                     case 4: levelName = '終極挑戰'; break;
                 }
-                if (i > currentLevel) {
-                    btn.innerHTML = `🔒第${i}關：${levelName}`;
-                    btn.classList.add('locked');
-                    btn.onclick = null; 
-                } else {
-                    btn.textContent = `第${i}關：${levelName}`;
+                
+                // 顯示關卡名稱和最高分數
+                const highScore = levelScores[i - 1];
+                const scoreText = highScore > 0 ? ` (最高分：${highScore})` : '';
+                
+                // 修改解鎖邏輯：只有當前關卡和已解鎖的關卡可以點選
+                if (i === 1 || (i <= currentLevel && levelScores[i - 2] >= LEVEL_REQUIREMENTS[i - 2])) {
+                    btn.innerHTML = `第${i}關：${levelName}${scoreText}`;
                     btn.classList.remove('locked');
                     btn.onclick = () => {
                         level = i;
+                        score = 0; // 重置分數
                         document.getElementById('levelSelect').classList.add('hidden');
                         startGame();
                     };
+                } else {
+                    btn.innerHTML = `🔒第${i}關：${levelName}`;
+                    btn.classList.add('locked');
+                    btn.onclick = null;
                 }
             }
         }
     }
     
-    
-
     // 關卡選擇按鈕
     updateLevelButtons();
 
@@ -1163,6 +1194,8 @@ window.addEventListener('DOMContentLoaded', () => {
             durians = [];
             bossFruit = null;
             bossActive = false;
+            level = 1;  // 重置當前遊玩關卡
+            updateLevelButtons(); // 更新關卡按鈕狀態
         };
     }
 });
@@ -1185,4 +1218,43 @@ function calculatePeachBonus(sliceCount) {
     }
     
     return baseScore;
+}
+
+function drawHurtEffect() {
+    if (isHurt) {
+        // 計算閃爍的透明度
+        const alpha = map(millis() - hurtTimer, 0, hurtDuration, 255, 0);
+        if (alpha > 0) {
+            // 繪製紅色邊框
+            push();
+            stroke(255, 0, 0, alpha);
+            strokeWeight(20);
+            noFill();
+            rect(0, 0, width, height);
+            pop();
+        } else {
+            isHurt = false;
+        }
+    }
+}
+
+function drawHands() {
+    if (showHands) {
+        const alpha = map(millis() - handShowTimer, 0, handShowDuration, 255, 0);
+        if (alpha > 0) {
+            push();
+            tint(255, alpha);
+            // 繪製左手
+            if (leftHandImage) {
+                image(leftHandImage, width * 0.1, height * 0.3, 200, 200);
+            }
+            // 繪製右手
+            if (rightHandImage) {
+                image(rightHandImage, width * 0.7, height * 0.3, 200, 200);
+            }
+            pop();
+        } else {
+            showHands = false;
+        }
+    }
 }
