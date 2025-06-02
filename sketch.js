@@ -8,6 +8,10 @@ let comboCount = 0;
 let lastSliceTime = 0;
 const LEVEL_REQUIREMENTS = [100, 100, 100, 100];
 
+// 添加暫停時間相關變量
+let pauseStartTime = 0;
+let totalPausedTime = 0;
+
 // 音效相關變量
 let bgm;
 let cutSound;
@@ -18,6 +22,10 @@ let failSound;
 let completeSound;
 let clickSound;
 let isBgmPlaying = false;
+
+// 在音效相關變量區域添加
+let menuMusic;
+let isMenuMusicPlaying = false;
 
 // 音效初始化函數
 function initializeSound() {
@@ -127,6 +135,13 @@ let modelLoading = true;
 let handDetected = false;
 let loadingProgress = 0;
 let loadingCheckInterval;
+let stableHandDetectionCount = 0;
+let lastHandDetectionTime = 0;
+const REQUIRED_STABLE_DETECTIONS = 15;  // 從30降到15次
+const STABLE_DETECTION_INTERVAL = 150;  // 從100增加到150毫秒
+const CONFIDENCE_THRESHOLD = 0.5;      // 從0.7降到0.5
+const MAX_LOADING_TIME = 15000;       // 最長等待時間15秒
+let loadingStartTime = 0;            // 記錄開始載入的時間
 
 // 在全局變量區域添加 updateLevelButtons 函數
 function updateLevelButtons() {
@@ -268,6 +283,17 @@ function preload() {
         try {
             console.log('開始載入音效文件...');
             
+            menuMusic = loadSound('./Assets/Sounds/music.mp3',
+                () => {
+                    console.log('選單音樂載入成功');
+                    menuMusic.setVolume(0.4);
+                },
+                (error) => {
+                    console.error('選單音樂載入失敗:', error);
+                    menuMusic = null;
+                }
+            );
+
             bgm = loadSound('./Assets/Sounds/bgm.mp3',
                 () => {
                     console.log('背景音樂載入成功');
@@ -360,7 +386,7 @@ function preload() {
         } catch (soundError) {
             console.error('音效載入過程中發生錯誤:', soundError);
             // 將所有音效變量設為 null
-            bgm = cutSound = cutBossSound = boomSound = hurtSound = failSound = completeSound = clickSound = null;
+            bgm = cutSound = cutBossSound = boomSound = hurtSound = failSound = completeSound = clickSound = menuMusic = null;
         }
     } catch (error) {
         console.error('資源載入過程中發生錯誤:', error);
@@ -373,6 +399,9 @@ function setup() {
     canvas.parent('gameContainer');
     canvas.style('background', 'transparent');
     
+    // 記錄開始載入時間
+    loadingStartTime = millis();
+    
     // 初始化音效系統
     initializeSound();
     
@@ -380,25 +409,44 @@ function setup() {
     video.size(640, 480);
     video.hide();
 
-    // 顯示載入畫面
-    document.getElementById('loadingScreen').classList.remove('hidden');
+    // 先隱藏主選單，顯示載入畫面
     document.getElementById('startScreen').classList.add('hidden');
+    document.getElementById('loadingScreen').classList.remove('hidden');
 
-    // 初始化手部追蹤模型
+    // 初始化手部追蹤模型，調整參數
     handpose = ml5.handpose(video, {
         flipHorizontal: true,
         maxHands: 1,
         detectionConfidence: 0.5,
-        maxNumHands: 1
+        iouThreshold: 0.3,        // 降低 IOU 閾值
+        scoreThreshold: 0.5       // 降低分數閾值
     }, modelReady);
 
     // 設置手部追蹤的回調函數
     handpose.on('predict', results => {
         hands = results;
-        if (hands.length > 0 && !handDetected) {
-            handDetected = true;
-            console.log('首次偵測到手部');
+        const currentTime = millis();
+        
+        if (hands.length > 0) {
+            const hand = hands[0];
+            if (hand.confidence >= CONFIDENCE_THRESHOLD) {
+                if (currentTime - lastHandDetectionTime <= STABLE_DETECTION_INTERVAL) {
+                    stableHandDetectionCount++;
+                    if (stableHandDetectionCount >= REQUIRED_STABLE_DETECTIONS && !handDetected) {
+                        handDetected = true;
+                        console.log('手部偵測穩定');
+                    }
+                } else {
+                    // 如果間隔太長，重置計數
+                    stableHandDetectionCount = 1;
+                }
+                lastHandDetectionTime = currentTime;
+            }
+        } else {
+            // 如果沒有偵測到手部，重置計數
+            stableHandDetectionCount = 0;
         }
+
         // 確保在收到手部追蹤數據時立即更新
         if (!isPaused && gameState !== 'death') {
             loop();
@@ -412,6 +460,12 @@ function setup() {
     
     // 確保遊戲循環開始運行
     loop();
+
+    // 開始播放選單音樂
+    if (menuMusic && !isMenuMusicPlaying) {
+        menuMusic.loop();
+        isMenuMusicPlaying = true;
+    }
 }
 
 function modelReady() {
@@ -424,13 +478,32 @@ function modelReady() {
 function startLoadingCheck() {
     loadingProgress = 0;
     loadingCheckInterval = setInterval(() => {
+        const currentTime = millis();
+        const elapsedTime = currentTime - loadingStartTime;
+        
+        // 檢查是否超時
+        if (elapsedTime >= MAX_LOADING_TIME) {
+            // 如果超過最長等待時間，直接進入主畫面
+            clearInterval(loadingCheckInterval);
+            if (!handDetected) {
+                console.log('載入超時，強制完成');
+                handDetected = true;
+                // 顯示提示訊息
+                const loadingText = document.querySelector('.loading-text');
+                if (loadingText) {
+                    loadingText.innerHTML += '<br><span style="color: #ffa500;">提示：如果遊戲中手部偵測不穩定，請調整鏡頭角度或確保光線充足</span>';
+                }
+                setTimeout(() => completeLoading(), 2000);
+            }
+            return;
+        }
+
         if (!modelLoading && handDetected) {
-            // 模型載入完成且偵測到手部，完成載入
             clearInterval(loadingCheckInterval);
             completeLoading();
         } else if (!modelLoading) {
-            // 模型載入完成但還未偵測到手部
-            loadingProgress = Math.min(90, loadingProgress + 1);
+            const detectionProgress = Math.min(40, (stableHandDetectionCount / REQUIRED_STABLE_DETECTIONS) * 40);
+            loadingProgress = 50 + detectionProgress;
             updateLoadingBar();
             updateLoadingText();
         }
@@ -447,10 +520,19 @@ function updateLoadingBar() {
 function updateLoadingText() {
     const loadingText = document.querySelector('.loading-text');
     if (loadingText) {
-        if (!modelLoading && !handDetected) {
-            loadingText.textContent = '請將手掌放入鏡頭中...';
-        } else if (modelLoading) {
-            loadingText.textContent = '正在初始化手部追蹤模型...';
+        if (modelLoading) {
+            loadingText.innerHTML = `正在初始化手部追蹤模型...<br><span class="loading-percentage">${Math.round(loadingProgress)}%</span>`;
+            loadingText.style.color = '#4a90e2';
+        } else if (!handDetected) {
+            const detectionPercentage = Math.round((stableHandDetectionCount / REQUIRED_STABLE_DETECTIONS) * 100);
+            const timeLeft = Math.max(0, Math.ceil((MAX_LOADING_TIME - (millis() - loadingStartTime)) / 1000));
+            
+            loadingText.innerHTML = `請將手掌放入鏡頭中...<br>
+                <span class="loading-percentage">${Math.round(loadingProgress)}%</span><br>
+                <span class="detection-status">手部偵測穩定度: ${Math.min(100, detectionPercentage)}%</span><br>
+                <span class="time-left">(${timeLeft}秒後自動進入)</span>`;
+            loadingText.style.color = '#ff6b6b';
+            loadingText.style.fontSize = '24px';
         }
     }
 }
@@ -459,26 +541,47 @@ function completeLoading() {
     loadingProgress = 100;
     updateLoadingBar();
     
-    // 添加完成動畫
-    const loadingScreen = document.getElementById('loadingScreen');
-    const startScreen = document.getElementById('startScreen');
-    
-    loadingScreen.style.transition = 'opacity 0.5s ease-out';
-    loadingScreen.style.opacity = '0';
-    
+    // 設置最小等待時間（3秒）
     setTimeout(() => {
-        loadingScreen.classList.add('hidden');
-        startScreen.classList.remove('hidden');
-        startScreen.style.opacity = '0';
-        
-        requestAnimationFrame(() => {
-            startScreen.style.transition = 'opacity 0.5s ease-in';
-            startScreen.style.opacity = '1';
-        });
-    }, 500);
+        // 檢查是否已經偵測到手部
+        if (handDetected) {
+            // 淡出載入畫面
+            const loadingScreen = document.getElementById('loadingScreen');
+            loadingScreen.style.transition = 'opacity 0.5s ease-out';
+            loadingScreen.style.opacity = '0';
+            
+            setTimeout(() => {
+                // 隱藏載入畫面並顯示主選單
+                loadingScreen.classList.add('hidden');
+                const startScreen = document.getElementById('startScreen');
+                startScreen.classList.remove('hidden');
+                startScreen.style.opacity = '0';
+                
+                requestAnimationFrame(() => {
+                    startScreen.style.transition = 'opacity 0.5s ease-in';
+                    startScreen.style.opacity = '1';
+                });
+            }, 500);
+        } else {
+            // 如果還沒偵測到手部，更新提示文字並繼續等待
+            const loadingText = document.querySelector('.loading-text');
+            if (loadingText) {
+                loadingText.textContent = '請將手掌放入鏡頭中...';
+                loadingText.style.color = '#ff6b6b';
+                loadingText.style.fontSize = '24px';
+            }
+            // 每500ms檢查一次是否偵測到手部
+            setTimeout(completeLoading, 500);
+        }
+    }, 3000);
 }
 
 function startGame() {
+    if (menuMusic && isMenuMusicPlaying) {
+        menuMusic.stop();
+        isMenuMusicPlaying = false;
+    }
+    
     gameState = 'playing';
     console.log('遊戲狀態:', gameState);
     score = 0;
@@ -520,6 +623,10 @@ function startGame() {
     document.getElementById('comboIndicator').classList.add('hidden');
     document.getElementById('pauseMenu').classList.add('hidden');
     updateStats();
+    
+    // 重置暫停相關變量
+    pauseStartTime = 0;
+    totalPausedTime = 0;
 }
 
 function restartGame() {
@@ -549,6 +656,12 @@ function gameOver() {
     if (bgm && isBgmPlaying) {
         bgm.stop();
         isBgmPlaying = false;
+    }
+    
+    // 開始播放選單音樂
+    if (menuMusic && !isMenuMusicPlaying) {
+        menuMusic.loop();
+        isMenuMusicPlaying = true;
     }
     
     // 播放結算音效
@@ -654,7 +767,8 @@ function draw() {
         drawHandTracking();
     } else if (gameState === 'playing') {
         if (!peachActive) {
-            let elapsed = (millis() - gameStartTime) / 1000;
+            // 計算經過時間時需要減去暫停的時間
+            let elapsed = (millis() - gameStartTime - totalPausedTime) / 1000;
             let timeLeft = Math.max(0, 20 - Math.floor(elapsed));
             gameTimer = timeLeft;
             document.getElementById('gameTimer').textContent = timeLeft;
@@ -1583,19 +1697,31 @@ function handleKeyPress(event) {
 function togglePause() {
     isPaused = !isPaused;
     const pauseMenu = document.getElementById('pauseMenu');
-    console.log('切換暫停狀態:', isPaused);
     
     if (isPaused) {
         console.log('顯示暫停選單');
         pauseMenu.classList.remove('hidden');
-        // 暫停背景音樂
+        // 記錄暫停開始時間
+        pauseStartTime = millis();
+        // 暫停遊戲背景音樂
         if (bgm && isBgmPlaying) {
             bgm.pause();
         }
+        // 播放暫停背景音樂
+        if (bgm) {
+            bgm.loop();
+            isBgmPlaying = true;
+        }
+        noLoop();  // 停止遊戲循環
     } else {
         console.log('隱藏暫停選單');
         pauseMenu.classList.add('hidden');
-        // 恢復背景音樂
+        // 計算總暫停時間
+        if (pauseStartTime > 0) {
+            totalPausedTime += millis() - pauseStartTime;
+            pauseStartTime = 0;
+        }
+        // 恢復遊戲背景音樂
         if (bgm && isBgmPlaying) {
             bgm.play();
         }
@@ -1646,6 +1772,19 @@ window.addEventListener('DOMContentLoaded', () => {
     if(backToLevelBtn) {
         backToLevelBtn.onclick = () => {
             if (clickSound) clickSound.play();
+            
+            // 停止遊戲背景音樂
+            if (bgm && isBgmPlaying) {
+                bgm.stop();
+                isBgmPlaying = false;
+            }
+            
+            // 播放選單音樂
+            if (menuMusic && !isMenuMusicPlaying) {
+                menuMusic.loop();
+                isMenuMusicPlaying = true;
+            }
+            
             document.getElementById('gameOverScreen').classList.add('hidden');
             document.getElementById('levelSelect').classList.remove('hidden');
             updateLevelButtons();
@@ -1698,6 +1837,18 @@ window.addEventListener('DOMContentLoaded', () => {
             if (clickSound) clickSound.play();
             isPaused = false;
             loop();
+            
+            // 停止遊戲背景音樂
+            if (bgm && isBgmPlaying) {
+                bgm.stop();
+                isBgmPlaying = false;
+            }
+            
+            // 播放選單音樂
+            if (menuMusic && !isMenuMusicPlaying) {
+                menuMusic.loop();
+                isMenuMusicPlaying = true;
+            }
             
             // 隱藏所有遊戲 UI 元素
             const uiElements = [
@@ -1916,6 +2067,13 @@ function showDeathScreen() {
         bgm.stop();
         isBgmPlaying = false;
     }
+    
+    // 開始播放選單音樂
+    if (menuMusic && !isMenuMusicPlaying) {
+        menuMusic.loop();
+        isMenuMusicPlaying = true;
+    }
+    
     if (failSound) failSound.play();
     
     // 隱藏遊戲UI
@@ -1996,3 +2154,29 @@ function resetButtonHover() {
     }
     buttonHoverStartTime = 0;
 }
+
+// 更新 CSS 樣式
+const style = document.createElement('style');
+style.textContent = `
+    .loading-percentage {
+        font-size: 36px;
+        font-weight: bold;
+        color: #FFD700;
+        text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+        display: block;
+        margin: 10px 0;
+    }
+    .detection-status {
+        font-size: 18px;
+        color: #4a90e2;
+        display: block;
+        margin-top: 5px;
+    }
+    .time-left {
+        font-size: 16px;
+        color: #ffa500;
+        display: block;
+        margin-top: 5px;
+    }
+`;
+document.head.appendChild(style);
