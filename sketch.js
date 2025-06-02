@@ -8,6 +8,37 @@ let comboCount = 0;
 let lastSliceTime = 0;
 const LEVEL_REQUIREMENTS = [100, 100, 100, 100];
 
+// 音效相關變量
+let bgm;
+let cutSound;
+let cutBossSound;
+let boomSound;
+let hurtSound;
+let failSound;
+let completeSound;
+let clickSound;
+let isBgmPlaying = false;
+
+// 音效初始化函數
+function initializeSound() {
+    try {
+        // 設置音效音量
+        if (bgm) {
+            bgm.setVolume(0.4);
+            console.log('背景音樂音量設置成功');
+        }
+        if (cutSound) cutSound.setVolume(0.6);
+        if (cutBossSound) cutBossSound.setVolume(0.7);
+        if (boomSound) boomSound.setVolume(0.8);
+        if (hurtSound) hurtSound.setVolume(0.6);
+        if (failSound) failSound.setVolume(0.7);
+        if (completeSound) completeSound.setVolume(0.7);
+        if (clickSound) clickSound.setVolume(0.5);
+    } catch (error) {
+        console.error('音效初始化錯誤:', error);
+    }
+}
+
 let heartImage;
 let heartScale = 1;
 let heartAlpha = 255;
@@ -83,8 +114,57 @@ let screenShakeTime = 0;
 let screenShakeDuration = 300; // 震動持續300毫秒
 let screenShakeIntensity = 10; // 初始震動強度
 
+// 在全局變量區域添加按鈕觸發相關變量
+let hoveredButton = null;
+let buttonHoverStartTime = 0;
+const BUTTON_HOVER_DURATION = 1500; // 1.5秒
+
+// 在全局變量區域添加
+let handTrackingMode = 'normal'; // 'normal' 或 'playing'
+
+// 在全局變量區域添加
+let modelLoading = true;
+let handDetected = false;
+let loadingProgress = 0;
+let loadingCheckInterval;
+
+// 在全局變量區域添加 updateLevelButtons 函數
+function updateLevelButtons() {
+    for (let i = 1; i <= 4; i++) {
+        const btn = document.getElementById('levelBtn' + i);
+        if (btn) {
+            let levelName = '';
+            switch (i) {
+                case 1: levelName = '新手教學'; break;
+                case 2: levelName = '榴槤挑戰'; break;
+                case 3: levelName = '炸彈危機'; break;
+                case 4: levelName = '終極挑戰'; break;
+            }
+            
+            const highScore = levelScores[i - 1];
+            const scoreText = highScore > 0 ? ` (最高分：${highScore})` : '';
+            
+            if (i === 1 || (i <= currentLevel && levelScores[i - 2] >= LEVEL_REQUIREMENTS[i - 2])) {
+                btn.innerHTML = `第${i}關：${levelName}${scoreText}`;
+                btn.classList.remove('locked');
+                btn.onclick = () => {
+                    level = i;
+                    score = 0;
+                    document.getElementById('levelSelect').classList.add('hidden');
+                    startGame();
+                };
+            } else {
+                btn.innerHTML = `🔒第${i}關：${levelName}`;
+                btn.classList.add('locked');
+                btn.onclick = null;
+            }
+        }
+    }
+}
+
 function preload() {
     try {
+        // 載入圖片資源
         backgroundImage = loadImage('./Assets/background.jpg', 
             () => console.log('背景圖片載入成功'),
             () => console.error('背景圖片載入失敗')
@@ -183,8 +263,107 @@ function preload() {
             () => console.log('右手圖片載入成功'),
             () => console.error('右手圖片載入失敗')
         );
+
+        // 載入音效文件
+        try {
+            console.log('開始載入音效文件...');
+            
+            bgm = loadSound('./Assets/Sounds/bgm.mp3',
+                () => {
+                    console.log('背景音樂載入成功');
+                    bgm.setVolume(0.4);
+                },
+                (error) => {
+                    console.error('背景音樂載入失敗:', error);
+                    bgm = null;
+                }
+            );
+
+            cutSound = loadSound('./Assets/Sounds/cut.mp3',
+                () => {
+                    console.log('切割音效載入成功');
+                    cutSound.setVolume(0.6);
+                },
+                (error) => {
+                    console.error('切割音效載入失敗:', error);
+                    cutSound = null;
+                }
+            );
+
+            cutBossSound = loadSound('./Assets/Sounds/cutBoss.mp3',
+                () => {
+                    console.log('Boss切割音效載入成功');
+                    cutBossSound.setVolume(0.7);
+                },
+                (error) => {
+                    console.error('Boss切割音效載入失敗:', error);
+                    cutBossSound = null;
+                }
+            );
+
+            boomSound = loadSound('./Assets/Sounds/boom.mp3',
+                () => {
+                    console.log('爆炸音效載入成功');
+                    boomSound.setVolume(0.8);
+                },
+                (error) => {
+                    console.error('爆炸音效載入失敗:', error);
+                    boomSound = null;
+                }
+            );
+
+            hurtSound = loadSound('./Assets/Sounds/hurt.mp3',
+                () => {
+                    console.log('受傷音效載入成功');
+                    hurtSound.setVolume(0.6);
+                },
+                (error) => {
+                    console.error('受傷音效載入失敗:', error);
+                    hurtSound = null;
+                }
+            );
+
+            failSound = loadSound('./Assets/Sounds/fail.mp3',
+                () => {
+                    console.log('失敗音效載入成功');
+                    failSound.setVolume(0.7);
+                },
+                (error) => {
+                    console.error('失敗音效載入失敗:', error);
+                    failSound = null;
+                }
+            );
+
+            completeSound = loadSound('./Assets/Sounds/complete.mp3',
+                () => {
+                    console.log('完成音效載入成功');
+                    completeSound.setVolume(0.7);
+                },
+                (error) => {
+                    console.error('完成音效載入失敗:', error);
+                    completeSound = null;
+                }
+            );
+
+            clickSound = loadSound('./Assets/Sounds/click.mp3',
+                () => {
+                    console.log('點擊音效載入成功');
+                    clickSound.setVolume(0.5);
+                },
+                (error) => {
+                    console.error('點擊音效載入失敗:', error);
+                    clickSound = null;
+                }
+            );
+
+            console.log('音效文件載入完成');
+        } catch (soundError) {
+            console.error('音效載入過程中發生錯誤:', soundError);
+            // 將所有音效變量設為 null
+            bgm = cutSound = cutBossSound = boomSound = hurtSound = failSound = completeSound = clickSound = null;
+        }
     } catch (error) {
-        console.error('圖片載入過程中發生錯誤:', error);
+        console.error('資源載入過程中發生錯誤:', error);
     }
 }
 
@@ -194,22 +373,109 @@ function setup() {
     canvas.parent('gameContainer');
     canvas.style('background', 'transparent');
     
+    // 初始化音效系統
+    initializeSound();
+    
     video = createCapture(VIDEO);
     video.size(640, 480);
     video.hide();
 
+    // 顯示載入畫面
+    document.getElementById('loadingScreen').classList.remove('hidden');
+    document.getElementById('startScreen').classList.add('hidden');
+
+    // 初始化手部追蹤模型
+    handpose = ml5.handpose(video, {
+        flipHorizontal: true,
+        maxHands: 1,
+        detectionConfidence: 0.5,
+        maxNumHands: 1
+    }, modelReady);
+
+    // 設置手部追蹤的回調函數
+    handpose.on('predict', results => {
+        hands = results;
+        if (hands.length > 0 && !handDetected) {
+            handDetected = true;
+            console.log('首次偵測到手部');
+        }
+        // 確保在收到手部追蹤數據時立即更新
+        if (!isPaused && gameState !== 'death') {
+            loop();
+        }
+    });
+
+    // 開始檢查載入進度
+    startLoadingCheck();
+
     window.addEventListener('keydown', handleKeyPress);
+    
+    // 確保遊戲循環開始運行
+    loop();
 }
 
 function modelReady() {
     console.log('Handpose model ready!');
+    modelLoading = false;
+    loadingProgress = 50; // 模型載入完成佔50%
+    updateLoadingBar();
+}
+
+function startLoadingCheck() {
+    loadingProgress = 0;
+    loadingCheckInterval = setInterval(() => {
+        if (!modelLoading && handDetected) {
+            // 模型載入完成且偵測到手部，完成載入
+            clearInterval(loadingCheckInterval);
+            completeLoading();
+        } else if (!modelLoading) {
+            // 模型載入完成但還未偵測到手部
+            loadingProgress = Math.min(90, loadingProgress + 1);
+            updateLoadingBar();
+            updateLoadingText();
+        }
+    }, 100);
+}
+
+function updateLoadingBar() {
+    const loadingBar = document.getElementById('loadingBar');
+    if (loadingBar) {
+        loadingBar.style.width = loadingProgress + '%';
+    }
+}
+
+function updateLoadingText() {
+    const loadingText = document.querySelector('.loading-text');
+    if (loadingText) {
+        if (!modelLoading && !handDetected) {
+            loadingText.textContent = '請將手掌放入鏡頭中...';
+        } else if (modelLoading) {
+            loadingText.textContent = '正在初始化手部追蹤模型...';
+        }
+    }
+}
+
+function completeLoading() {
+    loadingProgress = 100;
+    updateLoadingBar();
     
-    handpose.on('predict', results => {
-        hands = results;
-    });
+    // 添加完成動畫
+    const loadingScreen = document.getElementById('loadingScreen');
+    const startScreen = document.getElementById('startScreen');
     
-    document.getElementById('loadingScreen').classList.add('hidden');
-    document.getElementById('levelSelect').classList.remove('hidden');
+    loadingScreen.style.transition = 'opacity 0.5s ease-out';
+    loadingScreen.style.opacity = '0';
+    
+    setTimeout(() => {
+        loadingScreen.classList.add('hidden');
+        startScreen.classList.remove('hidden');
+        startScreen.style.opacity = '0';
+        
+        requestAnimationFrame(() => {
+            startScreen.style.transition = 'opacity 0.5s ease-in';
+            startScreen.style.opacity = '1';
+        });
+    }, 500);
 }
 
 function startGame() {
@@ -228,6 +494,12 @@ function startGame() {
     gameTimer = 20;
     gameStartTime = millis();
     isPaused = false;
+    
+    // 播放背景音樂
+    if (bgm && !isBgmPlaying) {
+        bgm.loop();
+        isBgmPlaying = true;
+    }
     
     // 重置桃子模式相關狀態
     peachActive = false;
@@ -257,6 +529,12 @@ function restartGame() {
     peachTimer = 15;
     document.getElementById('peachOverlay').classList.add('hidden');
     
+    // 停止所有音效
+    if (bgm && isBgmPlaying) {
+        bgm.stop();
+        isBgmPlaying = false;
+    }
+    
     // 重置遊戲狀態
     document.getElementById('gameOverScreen').classList.add('hidden');
     document.getElementById('pauseMenu').classList.add('hidden');
@@ -266,6 +544,20 @@ function restartGame() {
 
 function gameOver() {
     gameState = 'gameover';
+    
+    // 停止背景音樂
+    if (bgm && isBgmPlaying) {
+        bgm.stop();
+        isBgmPlaying = false;
+    }
+    
+    // 播放結算音效
+    if (score >= LEVEL_REQUIREMENTS[level - 1]) {
+        if (completeSound) completeSound.play();
+    } else {
+        if (failSound) failSound.play();
+    }
+    
     document.getElementById('gameStats').classList.add('hidden');
     document.getElementById('heartsContainer').classList.add('hidden');
     document.getElementById('timerContainer').classList.add('hidden');
@@ -276,6 +568,9 @@ function gameOver() {
     if (score > levelScores[level - 1]) {
         levelScores[level - 1] = score;
     }
+
+    // 不要停止遊戲循環，讓手指追蹤繼續運作
+    loop();
 
     if (score >= LEVEL_REQUIREMENTS[level - 1]) {
         if (level === currentLevel && currentLevel < 4) {
@@ -322,26 +617,6 @@ function showCombo() {
 }
 
 function draw() {
-    if (isPaused) {
-        if (backgroundImage) {
-            image(backgroundImage, 0, 0, width, height);
-        } else {
-            background(100);
-        }
-        return;
-    }
-    
-    push(); // 保存當前變換狀態
-    
-    // 處理畫面震動效果
-    if (millis() - screenShakeTime < screenShakeDuration) {
-        const progress = (millis() - screenShakeTime) / screenShakeDuration;
-        const currentIntensity = screenShakeIntensity * (1 - progress); // 震動強度隨時間衰減
-        const shakeX = random(-currentIntensity, currentIntensity);
-        const shakeY = random(-currentIntensity, currentIntensity);
-        translate(shakeX, shakeY);
-    }
-    
     clear();
     
     if (backgroundImage) {
@@ -350,9 +625,33 @@ function draw() {
         background(100);
     }
 
-    if (gameState === 'start') {
+    // 如果還在載入中，不更新其他內容
+    if (modelLoading || !handDetected) {
+        return;
+    }
+
+    // 更新手部追蹤
+    updateHandTracking();
+
+    push(); // 保存當前變換狀態
+    
+    // 處理畫面震動效果
+    if (millis() - screenShakeTime < screenShakeDuration) {
+        const progress = (millis() - screenShakeTime) / screenShakeDuration;
+        const currentIntensity = screenShakeIntensity * (1 - progress);
+        const shakeX = random(-currentIntensity, currentIntensity);
+        const shakeY = random(-currentIntensity, currentIntensity);
+        translate(shakeX, shakeY);
+    }
+
+    if (isPaused) {
+        // 在暫停狀態下只顯示背景和手指指示器
+        drawHandTracking();
+        loop(); // 確保在暫停時也能更新手指位置
+    } else if (gameState === 'start') {
         updateBackgroundFruits();
         drawBackgroundFruits();
+        drawHandTracking();
     } else if (gameState === 'playing') {
         if (!peachActive) {
             let elapsed = (millis() - gameStartTime) / 1000;
@@ -365,13 +664,19 @@ function draw() {
             }
         }
         
-        updateHandTracking();
         updateGameLogic();
         drawObjects();
-        drawHandTracking();
         drawHurtEffect();
         drawHands();
         drawHearts();
+        drawHandTracking();
+    } else if (gameState === 'gameover') {
+        // 在結算畫面也顯示手指指示器
+        drawHandTracking();
+        loop(); // 確保結算畫面也能更新手指位置
+    } else {
+        // 在其他狀態下也顯示手指指示器
+        drawHandTracking();
     }
     
     pop(); // 恢復變換狀態
@@ -414,24 +719,38 @@ function drawBackgroundFruits() {
 function updateHandTracking() {
     const currentTime = millis();
     
-    if (hands.length > 0) {
+    if (hands && hands.length > 0) {
         const hand = hands[0];
         
         if (hand.confidence < MIN_CONFIDENCE) {
             if (lastFingerPos) {
                 fingerPositions = [lastFingerPos.copy()];
             }
+            resetButtonHover();
             return;
         }
         
         const indexFinger = hand.annotations.indexFinger[3];
         const middleFinger = hand.annotations.middleFinger[3];
         
+        if (!indexFinger || !middleFinger) {
+            resetButtonHover();
+            return;
+        }
+        
         const avgX = (indexFinger[0] + middleFinger[0]) / 2;
         const avgY = (indexFinger[1] + middleFinger[1]) / 2;
 
         const newX = avgX * width / video.width;
         const newY = avgY * height / video.height;
+
+        // 根據遊戲狀態設置追蹤模式
+        handTrackingMode = (gameState === 'playing' && !isPaused) ? 'playing' : 'normal';
+
+        if (handTrackingMode === 'normal') {
+            // 在普通模式下檢查按鈕懸停
+            checkButtonHover(newX, newY);
+        }
 
         minFingerX = Math.min(minFingerX, newX);
         maxFingerX = Math.max(maxFingerX, newX);
@@ -459,13 +778,15 @@ function updateHandTracking() {
 
         lastValidHandTime = currentTime;
 
-        if (fingerPositions.length > 0) {
+        // 只在遊戲進行中更新切割軌跡
+        if (handTrackingMode === 'playing') {
             sliceTrail.push({
                 pos: fingerPositions[0].copy(),
                 life: TRAIL_LENGTH
             });
         }
     } else {
+        resetButtonHover();
         if (currentTime - lastValidHandTime > HAND_LOST_THRESHOLD) {
             lastFingerPos = null;
             fingerPositions = [];
@@ -474,7 +795,12 @@ function updateHandTracking() {
         }
     }
 
-    sliceTrail = sliceTrail.filter(slice => --slice.life > 0);
+    // 只在遊戲進行中更新切割軌跡
+    if (handTrackingMode === 'playing') {
+        sliceTrail = sliceTrail.filter(slice => --slice.life > 0);
+    } else {
+        sliceTrail = []; // 在非遊戲狀態下清空切割軌跡
+    }
 }
 
 function updateGameLogic() {
@@ -814,13 +1140,16 @@ function checkCollisions() {
         const isIntersecting = lineCircleIntersect(
             prevSlicePos, 
             currentFingerPos, 
-            createVector(width/2, height/2), // 使用固定的中心位置
-            peachPosition.size * 1.8 / 2    // 使用放大後的尺寸
+            createVector(width/2, height/2),
+            peachPosition.size * 1.8 / 2
         );
             
         if (isIntersecting && !isSlicingPeach) {
             peachSliceCount++;
             isSlicingPeach = true;
+            
+            // 播放Boss切割音效
+            if (cutBossSound) cutBossSound.play();
             
             // 更新切割次數顯示
             sliceCountDisplay = {
@@ -867,6 +1196,9 @@ function checkCollisions() {
             fruit.speedY *= 0.5;
             fruit.rotationSpeed *= 2;
             
+            // 播放切割音效
+            if (cutSound) cutSound.play();
+            
             score += 10;
             
             comboCount++;
@@ -883,6 +1215,9 @@ function checkCollisions() {
     for (let i = bombs.length - 1; i >= 0; i--) {
         const bomb = bombs[i];
         if (lineCircleIntersect(prevSlicePos, currentFingerPos, createVector(bomb.x, bomb.y), bomb.size / 2)) {
+            // 播放爆炸音效
+            if (boomSound) boomSound.play();
+            
             isHurt = true;
             hurtTimer = millis();
             showHands = true;
@@ -897,6 +1232,9 @@ function checkCollisions() {
     for (let i = durians.length - 1; i >= 0; i--) {
         const durian = durians[i];
         if (lineCircleIntersect(prevSlicePos, currentFingerPos, createVector(durian.x, durian.y), durian.size / 2)) {
+            // 播放受傷音效
+            if (hurtSound) hurtSound.play();
+            
             isHurt = true;
             hurtTimer = millis();
             showHands = true;
@@ -1143,31 +1481,62 @@ function drawObjects() {
 }
 
 function drawHandTracking() {
+    const fingerIndicator = document.querySelector('.finger-indicator');
+    const sliceTrailElement = document.querySelector('.slice-trail');
+    
+    // 更新手指指示器
     if (fingerPositions.length > 0) {
-        push();
-        fill(255, 255, 255, 200);
-        noStroke();
-        ellipse(fingerPositions[0].x, fingerPositions[0].y, 40, 40);
-        fill(255, 100, 100, 200);
-        ellipse(fingerPositions[0].x, fingerPositions[0].y, 20, 20);
-        pop();
+        fingerIndicator.style.display = 'block';
+        fingerIndicator.style.left = fingerPositions[0].x + 'px';
+        fingerIndicator.style.top = fingerPositions[0].y + 'px';
+    } else {
+        fingerIndicator.style.display = 'none';
     }
 
-    if (sliceTrail.length > 1) {
-        push();
-        noFill();
+    // 只在遊戲進行中顯示切割軌跡
+    if (handTrackingMode === 'playing' && sliceTrail.length > 1) {
+        // 清除現有的切割軌跡
+        while (sliceTrailElement.firstChild) {
+            sliceTrailElement.removeChild(sliceTrailElement.firstChild);
+        }
+
+        // 創建新的切割軌跡
         for (let i = 0; i < sliceTrail.length - 1; i++) {
             const slice1 = sliceTrail[i];
             const slice2 = sliceTrail[i + 1];
-            const alpha = map(slice1.life, 0, TRAIL_LENGTH, 0, 255);
-            const thickness = map(slice1.life, 0, TRAIL_LENGTH, 2, 8);
             
+            const trail = document.createElement('div');
+            trail.className = 'trail-segment';
+            
+            // 計算線段角度和長度
+            const dx = slice2.pos.x - slice1.pos.x;
+            const dy = slice2.pos.y - slice1.pos.y;
+            const angle = Math.atan2(dy, dx) * 180 / Math.PI;
+            const length = Math.sqrt(dx * dx + dy * dy);
+            
+            // 設置線段樣式
+            const alpha = map(slice1.life, 0, TRAIL_LENGTH, 0, 1);
+            const thickness = map(slice1.life, 0, TRAIL_LENGTH, 2, 8);
             const hue = map(i, 0, sliceTrail.length, 0, 60);
-            stroke(hue, 100, 100, alpha);
-            strokeWeight(thickness);
-            line(slice1.pos.x, slice1.pos.y, slice2.pos.x, slice2.pos.y);
+            
+            trail.style.position = 'absolute';
+            trail.style.left = slice1.pos.x + 'px';
+            trail.style.top = slice1.pos.y + 'px';
+            trail.style.width = length + 'px';
+            trail.style.height = thickness + 'px';
+            trail.style.background = `hsla(${hue}, 100%, 50%, ${alpha})`;
+            trail.style.transform = `rotate(${angle}deg)`;
+            trail.style.transformOrigin = '0 50%';
+            trail.style.borderRadius = '2px';
+            trail.style.boxShadow = `0 0 10px hsla(${hue}, 100%, 50%, ${alpha * 0.5})`;
+            
+            sliceTrailElement.appendChild(trail);
         }
-        pop();
+    } else {
+        // 清除切割軌跡
+        while (sliceTrailElement.firstChild) {
+            sliceTrailElement.removeChild(sliceTrailElement.firstChild);
+        }
     }
 }
 
@@ -1175,7 +1544,8 @@ function lineCircleIntersect(lineStart, lineEnd, circleCenter, radius) {
     const d = dist(lineStart.x, lineStart.y, lineEnd.x, lineEnd.y);
     if (d === 0) return false;
     
-    const expandedRadius = radius * 1.2;
+    // 增加判定範圍，使切割更容易
+    const expandedRadius = radius * 1.5;
     
     const dot = (((circleCenter.x - lineStart.x) * (lineEnd.x - lineStart.x)) + 
                  ((circleCenter.y - lineStart.y) * (lineEnd.y - lineStart.y))) / (d * d);
@@ -1183,7 +1553,8 @@ function lineCircleIntersect(lineStart, lineEnd, circleCenter, radius) {
     const closestX = lineStart.x + (dot * (lineEnd.x - lineStart.x));
     const closestY = lineStart.y + (dot * (lineEnd.y - lineStart.y));
     
-    if (dot < -0.1 || dot > 1.1) {
+    // 放寬判定條件
+    if (dot < -0.2 || dot > 1.2) {
         const distToStart = dist(lineStart.x, lineStart.y, circleCenter.x, circleCenter.y);
         const distToEnd = dist(lineEnd.x, lineEnd.y, circleCenter.x, circleCenter.y);
         return distToStart <= expandedRadius || distToEnd <= expandedRadius;
@@ -1217,10 +1588,17 @@ function togglePause() {
     if (isPaused) {
         console.log('顯示暫停選單');
         pauseMenu.classList.remove('hidden');
-        noLoop();
+        // 暫停背景音樂
+        if (bgm && isBgmPlaying) {
+            bgm.pause();
+        }
     } else {
         console.log('隱藏暫停選單');
         pauseMenu.classList.add('hidden');
+        // 恢復背景音樂
+        if (bgm && isBgmPlaying) {
+            bgm.play();
+        }
         loop();
     }
 }
@@ -1233,67 +1611,41 @@ window.addEventListener('DOMContentLoaded', () => {
     const ruleModal = document.getElementById('ruleModal');
     const closeRule = document.getElementById('closeRule');
     if(ruleBtn && ruleModal && closeRule) {
-        ruleBtn.onclick = () => ruleModal.classList.remove('hidden');
-        closeRule.onclick = () => ruleModal.classList.add('hidden');
+        ruleBtn.onclick = () => {
+            if (clickSound) clickSound.play();
+            ruleModal.classList.remove('hidden');
+        };
+        closeRule.onclick = () => {
+            if (clickSound) clickSound.play();
+            ruleModal.classList.add('hidden');
+        };
     }
 
     const startBtn = document.getElementById('startButton');
     if(startBtn) {
         startBtn.onclick = () => {
+            if (clickSound) clickSound.play();
             document.getElementById('startScreen').classList.add('hidden');
-            document.getElementById('loadingScreen').classList.remove('hidden');
-            handpose = ml5.handpose(video, {
-                flipHorizontal: true,
-                maxHands: 1,
-                detectionConfidence: 0.5,
-                maxNumHands: 1
-            }, modelReady);
+            document.getElementById('levelSelect').classList.remove('hidden');
+            updateLevelButtons();
         };
     }
 
-    function updateLevelButtons() {
-        for (let i = 1; i <= 4; i++) {
-            const btn = document.getElementById('levelBtn' + i);
-            if (btn) {
-                let levelName = '';
-                switch (i) {
-                    case 1: levelName = '新手教學'; break;
-                    case 2: levelName = '榴槤挑戰'; break;
-                    case 3: levelName = '炸彈危機'; break;
-                    case 4: levelName = '終極挑戰'; break;
-                }
-                
-                const highScore = levelScores[i - 1];
-                const scoreText = highScore > 0 ? ` (最高分：${highScore})` : '';
-                
-                if (i === 1 || (i <= currentLevel && levelScores[i - 2] >= LEVEL_REQUIREMENTS[i - 2])) {
-                    btn.innerHTML = `第${i}關：${levelName}${scoreText}`;
-                    btn.classList.remove('locked');
-                    btn.onclick = () => {
-                        level = i;
-                        score = 0;
-                        document.getElementById('levelSelect').classList.add('hidden');
-                        startGame();
-                    };
-                } else {
-                    btn.innerHTML = `🔒第${i}關：${levelName}`;
-                    btn.classList.add('locked');
-                    btn.onclick = null;
-                }
-            }
-        }
-    }
-    
+    // 初始化時更新關卡按鈕
     updateLevelButtons();
 
     const restartBtn = document.getElementById('restartButton');
     if(restartBtn) {
-        restartBtn.onclick = restartGame;
+        restartBtn.onclick = () => {
+            if (clickSound) clickSound.play();
+            restartGame();
+        };
     }
 
     const backToLevelBtn = document.getElementById('backToLevelSelect');
     if(backToLevelBtn) {
         backToLevelBtn.onclick = () => {
+            if (clickSound) clickSound.play();
             document.getElementById('gameOverScreen').classList.add('hidden');
             document.getElementById('levelSelect').classList.remove('hidden');
             updateLevelButtons();
@@ -1303,6 +1655,7 @@ window.addEventListener('DOMContentLoaded', () => {
     const exitLevelBtn = document.getElementById('exitLevelSelect');
     if(exitLevelBtn) {
         exitLevelBtn.onclick = () => {
+            if (clickSound) clickSound.play();
             document.getElementById('levelSelect').classList.add('hidden');
             document.getElementById('startScreen').classList.remove('hidden');
         };
@@ -1311,6 +1664,7 @@ window.addEventListener('DOMContentLoaded', () => {
     const nextLevelBtn = document.getElementById('nextLevelButton');
     if(nextLevelBtn) {
         nextLevelBtn.onclick = () => {
+            if (clickSound) clickSound.play();
             level++;
             document.getElementById('gameOverScreen').classList.add('hidden');
             document.getElementById('levelSelect').classList.remove('hidden');
@@ -1324,12 +1678,14 @@ window.addEventListener('DOMContentLoaded', () => {
 
     if (resumeBtn) {
         resumeBtn.onclick = () => {
+            if (clickSound) clickSound.play();
             togglePause();
         };
     }
 
     if (restartFromPauseBtn) {
         restartFromPauseBtn.onclick = () => {
+            if (clickSound) clickSound.play();
             isPaused = false;
             loop();
             document.getElementById('pauseMenu').classList.add('hidden');
@@ -1339,8 +1695,10 @@ window.addEventListener('DOMContentLoaded', () => {
 
     if (exitToMenuBtn) {
         exitToMenuBtn.onclick = () => {
+            if (clickSound) clickSound.play();
             isPaused = false;
             loop();
+            
             // 隱藏所有遊戲 UI 元素
             const uiElements = [
                 'pauseMenu',
@@ -1382,6 +1740,7 @@ window.addEventListener('DOMContentLoaded', () => {
     
     if (retryButton) {
         retryButton.onclick = () => {
+            if (clickSound) clickSound.play();
             document.getElementById('deathScreen').classList.remove('show');
             startGame();
         };
@@ -1389,6 +1748,7 @@ window.addEventListener('DOMContentLoaded', () => {
     
     if (backToMenuButton) {
         backToMenuButton.onclick = () => {
+            if (clickSound) clickSound.play();
             document.getElementById('deathScreen').classList.remove('show');
             document.getElementById('levelSelect').classList.remove('hidden');
             gameState = 'start';
@@ -1534,7 +1894,11 @@ function loseLife() {
         lastHeartLostTime = millis();
         // 觸發畫面震動
         screenShakeTime = millis();
-        screenShakeIntensity = 10; // 設置震動強度
+        screenShakeIntensity = 10;
+        
+        // 播放受傷音效
+        if (hurtSound) hurtSound.play();
+        
         updateStats();
     }
     
@@ -1546,6 +1910,13 @@ function loseLife() {
 function showDeathScreen() {
     gameState = 'death';
     noLoop();
+    
+    // 停止背景音樂並播放失敗音效
+    if (bgm && isBgmPlaying) {
+        bgm.stop();
+        isBgmPlaying = false;
+    }
+    if (failSound) failSound.play();
     
     // 隱藏遊戲UI
     document.getElementById('gameStats').classList.add('hidden');
@@ -1566,4 +1937,62 @@ function showDeathScreen() {
     setTimeout(() => {
         splatter.remove();
     }, 1000);
+}
+
+function checkButtonHover(x, y) {
+    const currentTime = millis();
+    const buttons = document.querySelectorAll('button:not(.hidden)');
+    let isHoveringAnyButton = false;
+
+    buttons.forEach(button => {
+        const rect = button.getBoundingClientRect();
+        // 增加判定範圍
+        const expandedRect = {
+            left: rect.left - 10,
+            right: rect.right + 10,
+            top: rect.top - 10,
+            bottom: rect.bottom + 10
+        };
+        
+        if (x >= expandedRect.left && x <= expandedRect.right && 
+            y >= expandedRect.top && y <= expandedRect.bottom) {
+            isHoveringAnyButton = true;
+            
+            if (hoveredButton !== button) {
+                // 新的按鈕被懸停
+                if (hoveredButton) {
+                    hoveredButton.classList.remove('loading');
+                }
+                hoveredButton = button;
+                buttonHoverStartTime = currentTime;
+                button.classList.add('loading');
+            } else if (currentTime - buttonHoverStartTime >= BUTTON_HOVER_DURATION) {
+                // 懸停時間達到，觸發按鈕點擊
+                if (clickSound) clickSound.play();
+                
+                // 特殊處理下一關按鈕
+                if (button.id === 'nextLevelButton') {
+                    level++;
+                    document.getElementById('gameOverScreen').classList.add('hidden');
+                    document.getElementById('levelSelect').classList.remove('hidden');
+                    updateLevelButtons();
+                } else {
+                    button.click();
+                }
+                resetButtonHover();
+            }
+        }
+    });
+
+    if (!isHoveringAnyButton && hoveredButton) {
+        resetButtonHover();
+    }
+}
+
+function resetButtonHover() {
+    if (hoveredButton) {
+        hoveredButton.classList.remove('loading');
+        hoveredButton = null;
+    }
+    buttonHoverStartTime = 0;
 }

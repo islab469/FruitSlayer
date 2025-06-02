@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>果斷行動 - Fruit Slicing Game</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/addons/p5.sound.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/ml5@0.6.0/dist/ml5.min.js"></script>
     <link rel="stylesheet" href="style.css">
     <style>
@@ -20,11 +21,22 @@
             position: absolute;
             top: 0;
             left: 0;
-            z-index: 1;
+            z-index: 6;
         }
         .game-ui {
             position: relative;
-            z-index: 2;
+            z-index: 7;
+        }
+        .start-screen,
+        .game-over-screen,
+        #levelSelect {
+            z-index: 8;
+        }
+        .decorative-fruits {
+            z-index: 9;
+        }
+        .modal {
+            z-index: 10;
         }
         .hidden {
             display: none;
@@ -35,6 +47,11 @@
     <div id="gameContainer">
     <div class="background-fruits">
     </div>
+
+        <div id="handTracker" class="hand-tracker">
+            <div class="finger-indicator"></div>
+            <div class="slice-trail"></div>
+        </div>
 
         <div class="start-screen" id="startScreen">
         <div class="decorative-fruits">
