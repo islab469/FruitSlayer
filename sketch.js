@@ -179,6 +179,12 @@ function updateLevelButtons() {
 
 function preload() {
     try {
+        // 預載入桃子圖片
+        peachImage = loadImage('./Assets/peach.png', 
+            () => console.log('桃子圖片載入成功'),
+            () => console.error('桃子圖片載入失敗')
+        );
+        
         // 載入圖片資源
         backgroundImage = loadImage('./Assets/background.jpg', 
             () => console.log('背景圖片載入成功'),
@@ -263,11 +269,6 @@ function preload() {
         durianImage = loadImage('./Assets/durian1.png', 
             () => console.log('榴槤圖片載入成功'),
             () => console.error('榴槤圖片載入失敗')
-        );
-
-        peachImage = loadImage('./Assets/peach.png',
-            () => console.log('桃子圖片載入成功'),
-            () => console.error('桃子圖片載入失敗')
         );
 
         leftHandImage = loadImage('./Assets/LeftHand.png',
@@ -784,10 +785,24 @@ function draw() {
         drawHands();
         drawHearts();
         drawHandTracking();
-    } else if (gameState === 'gameover') {
-        // 在結算畫面也顯示手指指示器
+    } else if (gameState === 'death' || gameState === 'gameover') {
+        // 在死亡和結算畫面也顯示手指指示器並保持更新
         drawHandTracking();
-        loop(); // 確保結算畫面也能更新手指位置
+        loop(); // 確保能繼續更新手指位置
+        
+        // 在死亡狀態下也檢查按鈕懸停
+        const currentTime = millis();
+        if (hands && hands.length > 0) {
+            const hand = hands[0];
+            if (hand.confidence >= CONFIDENCE_THRESHOLD) {
+                const indexFinger = hand.annotations.indexFinger[3];
+                if (indexFinger) {
+                    const x = indexFinger[0] * width / video.width;
+                    const y = indexFinger[1] * height / video.height;
+                    checkButtonHover(x, y);
+                }
+            }
+        }
     } else {
         // 在其他狀態下也顯示手指指示器
         drawHandTracking();
@@ -983,13 +998,13 @@ function generateObject() {
     if (level === 1) {
         generateFruit();
     } else if (level === 2) {
-        if (rand < 0.9) {
+        if (rand < 0.7) {
             generateFruit();
         } else {
             generateDurian();
         }
     } else if (level === 3) {
-        if (rand < 0.8) {
+        if (rand < 0.7) {
             generateFruit();
         } else if (rand < 0.9) {
             generateDurian();
@@ -1118,29 +1133,55 @@ function generateDurian() {
 function generatePeach() {
     if (peachActive) return;
     
-    peachActive = true;
-    peachSliceCount = 0;
-    peachTimer = 5;
-    peachStartTime = millis();
-    
-    // 顯示特效元素並隱藏其他UI
-    document.getElementById('peachOverlay').classList.remove('hidden');
-    document.getElementById('gameStats').classList.add('hidden');
-    document.getElementById('heartsContainer').classList.add('hidden');
-    document.getElementById('timerContainer').classList.add('hidden');
-    
-    // 清空所有水果和炸彈
-    fruits = [];
-    bombs = [];
-    durians = [];
-    
-    // 更新桃子位置到中心
-    peachPosition = {
-        x: width / 2,
-        y: height / 2,
-        size: 120,
-        rotation: 0
-    };
+    try {
+        // 檢查桃子圖片是否已正確載入
+        if (!peachImage || !peachImage.width) {
+            console.error('桃子圖片未正確載入，嘗試重新載入');
+            peachImage = loadImage('./Assets/peach.png', 
+                () => {
+                    console.log('桃子圖片重新載入成功');
+                    // 重新繪製桃子
+                    if (peachActive) {
+                        redraw();
+                    }
+                },
+                () => {
+                    console.error('桃子圖片重新載入失敗');
+                    // 使用備用圖形
+                    peachImage = null;
+                }
+            );
+        }
+        
+        peachActive = true;
+        peachSliceCount = 0;
+        peachTimer = 5;
+        peachStartTime = millis();
+        
+        // 顯示特效元素並隱藏其他UI
+        document.getElementById('peachOverlay').classList.remove('hidden');
+        document.getElementById('gameStats').classList.add('hidden');
+        document.getElementById('heartsContainer').classList.add('hidden');
+        document.getElementById('timerContainer').classList.add('hidden');
+        
+        // 清空所有水果和炸彈
+        fruits = [];
+        bombs = [];
+        durians = [];
+        
+        // 更新桃子位置到中心
+        peachPosition = {
+            x: width / 2,
+            y: height / 2,
+            size: 120,
+            rotation: 0
+        };
+    } catch (error) {
+        console.error('生成桃子時發生錯誤:', error);
+        // 發生錯誤時重置狀態
+        peachActive = false;
+        gameOver();
+    }
 }
 
 function updatePeachMode() {
@@ -1376,159 +1417,179 @@ function drawObjects() {
         // 放大桃子尺寸
         let enlargedSize = peachPosition.size * 1.8;
         
-        // 水墨效果的陰影
-        drawingContext.shadowBlur = 20;
-        drawingContext.shadowColor = 'rgba(0, 0, 0, 0.4)';
-        
-        if (peachImage) {
-            tint(255, 230, 230, 220);
-            imageMode(CENTER);
-            image(peachImage, 0, 0, enlargedSize, enlargedSize);
-            noTint();
-        } else {
+        try {
+            // 確保圖片已經載入且有效
+            if (peachImage && peachImage.width > 0) {
+                // 水墨效果的陰影
+                drawingContext.shadowBlur = 20;
+                drawingContext.shadowColor = 'rgba(0, 0, 0, 0.4)';
+                
+                // 使用 tint() 來調整桃子的顏色和透明度
+                tint(255, 230, 230, 220);
+                imageMode(CENTER);
+                image(peachImage, 0, 0, enlargedSize, enlargedSize);
+                noTint();
+                
+                // 添加輕微的水墨暈染效果
+                drawingContext.shadowBlur = 25;
+                drawingContext.shadowColor = 'rgba(0, 0, 0, 0.15)';
+                noFill();
+                stroke(0, 30);
+                strokeWeight(2);
+                ellipse(0, 0, enlargedSize + 15, enlargedSize + 15);
+            } else {
+                console.warn('使用備用圓形顯示桃子');
+                // 如果圖片無效，使用漂亮的備用圓形
+                // 主要圓形
+                fill(255, 182, 193, 220);
+                noStroke();
+                ellipse(0, 0, enlargedSize, enlargedSize);
+                
+                // 添加漸層效果
+                let gradient = drawingContext.createRadialGradient(0, 0, 0, 0, 0, enlargedSize/2);
+                gradient.addColorStop(0, 'rgba(255, 192, 203, 0.8)');
+                gradient.addColorStop(1, 'rgba(255, 182, 193, 0.2)');
+                drawingContext.fillStyle = gradient;
+                ellipse(0, 0, enlargedSize, enlargedSize);
+            }
+        } catch (error) {
+            console.error('桃子繪製錯誤:', error);
+            // 發生錯誤時使用簡單的圓形
             fill(255, 182, 193, 220);
             noStroke();
             ellipse(0, 0, enlargedSize, enlargedSize);
         }
         
-        // 添加輕微的水墨暈染效果
-        drawingContext.shadowBlur = 25;
-        drawingContext.shadowColor = 'rgba(0, 0, 0, 0.15)';
-        noFill();
-        stroke(0, 30);
-        strokeWeight(2);
-        ellipse(0, 0, enlargedSize + 15, enlargedSize + 15);
-        
         pop();
         
         // 切割次數顯示
         if (sliceCountDisplay.alpha > 0) {
+            try {
+                push();
+                
+                // 計算跳動效果
+                let jumpScale = 1.0;
+                if (sliceCountDisplay.alpha > 0.7) {
+                    jumpScale = 1.0 + (sliceCountDisplay.alpha - 0.7) * 1.5;
+                }
+                
+                // 每5次切割時的特效
+                if (peachSliceCount > 0 && peachSliceCount % 5 === 0) {
+                    const pulseEffect = sin(frameCount * 0.2) * 0.1;
+                    jumpScale += pulseEffect;
+                    drawingContext.shadowBlur = 30 + pulseEffect * 100;
+                }
+                
+                // 將位置調整到桃子下方
+                translate(width/2, height/2 + peachPosition.size * 1.2);
+                scale(jumpScale);
+                
+                // 主要文字 - 使用金色系
+                textAlign(CENTER, CENTER);
+                textSize(100);
+                textFont('Noto Serif JP');
+                
+                // 計算文字透明度
+                let textAlpha = sliceCountDisplay.alpha * 255;
+                
+                // 外發光效果 - 金色
+                drawingContext.shadowBlur = 30;
+                drawingContext.shadowColor = 'rgba(255, 215, 0, 0.6)';
+                
+                // 深色描邊
+                strokeWeight(8);
+                stroke(30, 30, 30, textAlpha * 0.8);
+                fill(255, 215, 0, textAlpha);
+                text(sliceCountDisplay.text, 0, 0);
+                
+                // 內層明亮文字
+                strokeWeight(0);
+                fill(255, 223, 0, textAlpha);
+                text(sliceCountDisplay.text, 0, 0);
+                
+                // 額外的光暈效果
+                if (peachSliceCount > 0 && peachSliceCount % 5 === 0) {
+                    drawingContext.shadowBlur = 40;
+                    drawingContext.shadowColor = 'rgba(255, 215, 0, 0.5)';
+                    fill(255, 255, 200, textAlpha * 0.7);
+                    text(sliceCountDisplay.text, 0, 0);
+                }
+                
+                sliceCountDisplay.alpha -= 0.015;
+                
+                pop();
+            } catch (error) {
+                console.error('切割次數顯示錯誤:', error);
+            }
+        }
+
+        // 倒數計時器
+        try {
             push();
             
-            // 計算跳動效果
-            let jumpScale = 1.0;
-            if (sliceCountDisplay.alpha > 0.7) {
-                jumpScale = 1.0 + (sliceCountDisplay.alpha - 0.7) * 1.5;
-            }
+            let timeLeft = Math.ceil(peachTimer);
+            let isUrgent = timeLeft <= 3;
             
-            // 每5次切割時的特效
-            if (peachSliceCount > 0 && peachSliceCount % 5 === 0) {
-                const pulseEffect = sin(frameCount * 0.2) * 0.1;
-                jumpScale += pulseEffect;
-                drawingContext.shadowBlur = 30 + pulseEffect * 100;
-            }
+            // 位置調整
+            let timerX = width - 200;
+            let timerY = 120;
             
-            // 將位置調整到桃子下方
-            translate(width/2, height/2 + peachPosition.size * 1.2);
-            scale(jumpScale);
+            // 外框效果
+            strokeWeight(3);
+            stroke(0);
+            fill(255, 255, 255, 20);
+            rect(timerX - 100, timerY - 50, 200, 100, 15);
             
-            // 主要文字 - 使用金色系
+            // 內框陰影
+            drawingContext.shadowBlur = 10;
+            drawingContext.shadowColor = 'rgba(0, 0, 0, 0.3)';
+            strokeWeight(2);
+            stroke(255, 255, 255, 40);
+            noFill();
+            rect(timerX - 95, timerY - 45, 190, 90, 12);
+            
+            // 時間文字
             textAlign(CENTER, CENTER);
-            textSize(100); // 稍微縮小一點文字大小
+            textSize(72);
             textFont('Noto Serif JP');
             
-            // 計算文字透明度
-            let textAlpha = sliceCountDisplay.alpha * 255;
-            
-            // 外發光效果 - 金色
-            drawingContext.shadowBlur = 30;
-            drawingContext.shadowColor = 'rgba(255, 215, 0, 0.6)'; // 金色光暈
-            
-            // 深色描邊
-            strokeWeight(8);
-            stroke(30, 30, 30, textAlpha * 0.8);
-            fill(255, 215, 0, textAlpha); // 金色 (#FFD700)
-            text(sliceCountDisplay.text, 0, 0); // y位置改為0，因為已經在translate中調整了
-            
-            // 內層明亮文字
-            strokeWeight(0);
-            fill(255, 223, 0, textAlpha); // 更亮的金色
-            text(sliceCountDisplay.text, 0, 0);
-            
-            // 額外的光暈效果
-            if (peachSliceCount > 0 && peachSliceCount % 5 === 0) {
-                drawingContext.shadowBlur = 40;
-                drawingContext.shadowColor = 'rgba(255, 215, 0, 0.5)';
-                fill(255, 255, 200, textAlpha * 0.7);
-                text(sliceCountDisplay.text, 0, 0);
+            if (isUrgent) {
+                drawingContext.shadowBlur = 20;
+                drawingContext.shadowColor = 'rgba(255, 69, 0, 0.6)';
+                
+                const flashIntensity = sin(frameCount * 0.3) * 0.3 + 0.7;
+                
+                strokeWeight(6);
+                stroke(30, 30, 30, 255 * flashIntensity);
+                fill(255, 69, 0, 255 * flashIntensity);
+                text(timeLeft + '秒', timerX, timerY);
+                
+                strokeWeight(0);
+                fill(255, 99, 71, 255 * flashIntensity);
+                text(timeLeft + '秒', timerX, timerY);
+                
+                drawingContext.shadowBlur = 30;
+                drawingContext.shadowColor = 'rgba(255, 0, 0, 0.4)';
+                fill(255, 69, 0, 128 * flashIntensity);
+                text(timeLeft + '秒', timerX + 1, timerY + 1);
+            } else {
+                drawingContext.shadowBlur = 15;
+                drawingContext.shadowColor = 'rgba(218, 165, 32, 0.4)';
+                
+                strokeWeight(6);
+                stroke(30, 30, 30, 200);
+                fill(218, 165, 32);
+                text(timeLeft + '秒', timerX, timerY);
+                
+                strokeWeight(0);
+                fill(255, 215, 0);
+                text(timeLeft + '秒', timerX, timerY);
             }
             
-            sliceCountDisplay.alpha -= 0.015;
-            
             pop();
+        } catch (error) {
+            console.error('倒數計時器顯示錯誤:', error);
         }
-        
-        // 倒數計時器
-        push();
-        
-        let timeLeft = Math.ceil(peachTimer);
-        let isUrgent = timeLeft <= 3;
-        
-        // 位置調整
-        let timerX = width - 200;
-        let timerY = 120;
-        
-        // 外框效果 - 類似生命值的風格
-        strokeWeight(3);
-        stroke(0);
-        fill(255, 255, 255, 20);
-        rect(timerX - 100, timerY - 50, 200, 100, 15);
-        
-        // 內框陰影
-        drawingContext.shadowBlur = 10;
-        drawingContext.shadowColor = 'rgba(0, 0, 0, 0.3)';
-        strokeWeight(2);
-        stroke(255, 255, 255, 40);
-        noFill();
-        rect(timerX - 95, timerY - 45, 190, 90, 12);
-        
-        // 時間文字
-        textAlign(CENTER, CENTER);
-        textSize(72);
-        textFont('Noto Serif JP');
-        
-        if (isUrgent) {
-            // 緊急狀態 - 橘紅色 (#FF4500)
-            drawingContext.shadowBlur = 20;
-            drawingContext.shadowColor = 'rgba(255, 69, 0, 0.6)';
-            
-            // 閃爍效果
-            const flashIntensity = sin(frameCount * 0.3) * 0.3 + 0.7;
-            
-            // 外描邊
-            strokeWeight(6);
-            stroke(30, 30, 30, 255 * flashIntensity);
-            fill(255, 69, 0, 255 * flashIntensity);
-            text(timeLeft + '秒', timerX, timerY);
-            
-            // 內層文字
-            strokeWeight(0);
-            fill(255, 99, 71, 255 * flashIntensity);
-            text(timeLeft + '秒', timerX, timerY);
-            
-            // 警示光暈
-            drawingContext.shadowBlur = 30;
-            drawingContext.shadowColor = 'rgba(255, 0, 0, 0.4)';
-            fill(255, 69, 0, 128 * flashIntensity);
-            text(timeLeft + '秒', timerX + 1, timerY + 1);
-        } else {
-            // 正常狀態 - 深金色 (#DAA520)
-            drawingContext.shadowBlur = 15;
-            drawingContext.shadowColor = 'rgba(218, 165, 32, 0.4)';
-            
-            // 外描邊
-            strokeWeight(6);
-            stroke(30, 30, 30, 200);
-            fill(218, 165, 32); // GoldenRod
-            text(timeLeft + '秒', timerX, timerY);
-            
-            // 內層文字
-            strokeWeight(0);
-            fill(255, 215, 0); // 更亮的金色
-            text(timeLeft + '秒', timerX, timerY);
-        }
-        
-        pop();
     }
     
     // 繪製其他遊戲物件
@@ -2060,7 +2121,9 @@ function loseLife() {
 
 function showDeathScreen() {
     gameState = 'death';
-    noLoop();
+    
+    // 不要停止遊戲循環，讓手指追蹤繼續運作
+    // noLoop();  // 移除這行，讓遊戲循環繼續運行
     
     // 停止背景音樂並播放失敗音效
     if (bgm && isBgmPlaying) {
@@ -2099,7 +2162,8 @@ function showDeathScreen() {
 
 function checkButtonHover(x, y) {
     const currentTime = millis();
-    const buttons = document.querySelectorAll('button:not(.hidden)');
+    // 獲取所有可見的按鈕，包括死亡畫面的按鈕
+    const buttons = document.querySelectorAll('button:not(.hidden), .death-screen.show button');
     let isHoveringAnyButton = false;
 
     buttons.forEach(button => {
@@ -2127,16 +2191,7 @@ function checkButtonHover(x, y) {
             } else if (currentTime - buttonHoverStartTime >= BUTTON_HOVER_DURATION) {
                 // 懸停時間達到，觸發按鈕點擊
                 if (clickSound) clickSound.play();
-                
-                // 特殊處理下一關按鈕
-                if (button.id === 'nextLevelButton') {
-                    level++;
-                    document.getElementById('gameOverScreen').classList.add('hidden');
-                    document.getElementById('levelSelect').classList.remove('hidden');
-                    updateLevelButtons();
-                } else {
-                    button.click();
-                }
+                button.click();
                 resetButtonHover();
             }
         }
